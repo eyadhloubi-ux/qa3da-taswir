@@ -1,0 +1,24 @@
+{
+  "name": "qa3da-taswir",
+  "version": "1.0.0",
+  "description": "قعدة تصوير — ألعاب كاميرا للقعدة، إعداد م. إياد حلوبي",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@fontsource/readex-pro": "^5.3.0",
+    "@fontsource/reem-kufi": "^5.3.0",
+    "@mediapipe/tasks-vision": "0.10.14",
+    "express": "^4.21.2",
+    "qrcode-generator": "^1.4.4",
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "pg": "^8.13.1"
+  },
+  "license": "UNLICENSED"
+}

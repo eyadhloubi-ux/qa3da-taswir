@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: qa3da-taswir
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: STATS_KEY
+        generateValue: true

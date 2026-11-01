@@ -1,0 +1,16 @@
+{
+  "name": "قعدة تصوير",
+  "short_name": "قعدة تصوير",
+  "description": "10 تحديات كاميرا للقعدة، والكاميرا هي الحَكَم. إعداد م. إياد حلوبي",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F1EA",
+  "theme_color": "#F4F1EA",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

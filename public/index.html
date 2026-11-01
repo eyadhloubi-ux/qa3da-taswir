@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F1EA">
+<title>قعدة تصوير · صار بدها قعدة</title>
+<meta name="description" content="10 تحديات كاميرا للقعدة، والكاميرا هي الحَكَم. إعداد م. إياد حلوبي">
+<meta property="og:title" content="قعدة تصوير">
+<meta property="og:description" content="قرّب وجّك من الكاميرا… وهي الحَكَم. صار بدها قعدة.">
+<meta property="og:image" content="og.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="vendor/fonts/reem-kufi/700.css"><link rel="stylesheet" href="vendor/fonts/readex-pro/400.css"><link rel="stylesheet" href="vendor/fonts/readex-pro/500.css"><link rel="stylesheet" href="vendor/fonts/readex-pro/700.css">
+<style>
+:root{
+  --bg:#F4F1EA;--surface:#FFFFFF;--ink:#1A1C24;--ink2:#6A6C75;--line:#DCD6C8;--press:#1A1C24;
+  --acc:#FF8A5C;--red:#E5484D;--green:#2A9D6F;--blue:#2F5BD3;--on:#1A1C24;--dot:rgba(26,28,36,.08);--camb:#22252E;
+  --fd:'Reem Kufi','Readex Pro',system-ui,sans-serif;--fb:'Readex Pro',system-ui,sans-serif;color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161C;--surface:#1E2129;--ink:#EEEBE3;--ink2:#9C9EA6;--line:#30343F;--press:#05060A;--red:#F06A6E;--green:#4CC594;--dot:rgba(255,255,255,.05);--camb:#0C0D11;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161C;--surface:#1E2129;--ink:#EEEBE3;--ink2:#9C9EA6;--line:#30343F;--press:#05060A;--red:#F06A6E;--green:#4CC594;--dot:rgba(255,255,255,.05);--camb:#0C0D11;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;overflow-x:hidden}
+body{background:var(--bg) radial-gradient(circle,var(--dot) 1px,transparent 1.5px) 0 0/18px 18px;color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.6;min-height:100dvh;overflow-x:hidden}
+button,input{font-family:inherit;color:inherit}
+.app{max-width:480px;margin:0 auto;min-height:100dvh;padding:8px 16px 40px}
+.screen{display:none;animation:in .3s ease}.screen.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+h1,h2,h3{font-family:var(--fd);font-weight:700;margin:0;line-height:1.35}
+.n{direction:ltr;unicode-bidi:isolate}
+.hide{display:none!important}
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;margin-bottom:6px}
+.hb{display:flex;align-items:center;gap:6px;height:40px;border:2px solid var(--press);border-radius:12px;background:var(--surface);padding:0 12px;font-weight:500;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 var(--press)}
+.hb svg,.ib svg{width:17px;height:17px}
+.ib{width:40px;height:40px;flex:none;border:2px solid var(--press);border-radius:12px;background:var(--surface);display:grid;place-items:center;cursor:pointer;box-shadow:2px 2px 0 var(--press)}
+.hcode{font-weight:700;letter-spacing:3px;direction:ltr;font-size:14px;color:var(--ink2)}
+.top{display:flex;justify-content:space-between;align-items:center;min-height:44px;margin-bottom:10px;gap:10px}
+.top h2{font-size:20px;text-align:center;flex:1}
+.card{background:var(--surface);border:2px solid var(--press);border-radius:12px;box-shadow:3px 3px 0 var(--press);padding:14px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border:2px solid var(--press);border-radius:12px;background:var(--acc);color:var(--on);font-weight:700;font-size:16px;padding:10px 16px;box-shadow:3px 3px 0 var(--press);cursor:pointer;transition:transform .08s,box-shadow .08s;text-decoration:none}
+.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--press)}
+.btn.ghost{background:var(--surface);color:var(--ink)}
+.btn.red{background:var(--red);color:#fff}
+.btn.green{background:var(--green);color:#fff}
+.btn.sm{min-height:42px;font-size:14px}
+.btn.flat{background:transparent;box-shadow:none;border:2px dashed var(--line);color:var(--ink)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.big{min-height:60px;font-size:19px}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+.col{display:grid;gap:10px}
+.mut{color:var(--ink2)}
+.label{display:block;font-size:14px;font-weight:700;margin:18px 0 8px}
+.sig{font-size:12px;color:var(--ink2);text-align:center;margin-top:18px}
+.seg{display:flex;border:2px solid var(--press);border-radius:12px;overflow:hidden;background:var(--surface)}
+.seg button{flex:1;border:0;background:transparent;padding:9px 4px;font-weight:500;font-size:14px;cursor:pointer;line-height:1.3}
+.seg button+button{border-inline-start:2px solid var(--press)}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.seg button small{display:block;font-size:11px;opacity:.75;font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid var(--press);border-radius:999px;padding:5px 13px;background:var(--surface);font-weight:500;cursor:pointer;font-size:14px}
+.chip.on{background:var(--ink);color:var(--bg)}
+.field{width:100%;min-height:52px;border:2px solid var(--press);border-radius:12px;background:var(--surface);padding:10px 14px;font-size:17px;outline:none}
+.field:focus{box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 40%,transparent)}
+.av{width:var(--s,32px);height:var(--s,32px);border-radius:30%;border:2px solid var(--press);overflow:hidden;flex:none;display:grid;place-items:center;background:var(--pc,#ccc);color:#1A1C24;font-family:var(--fd);font-size:calc(var(--s,32px)*.45)}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av.off{opacity:.3;filter:grayscale(1)}
+
+/* الغلاف */
+.cover.on{display:flex;flex-direction:column;min-height:calc(100dvh - 70px)}
+.scene{position:relative;width:200px;height:200px;margin:14px auto 0}
+.scene svg{width:100%;height:100%;overflow:visible}
+.iris{transform-origin:100px 100px;animation:shut 4.5s ease-in-out infinite}
+.blades{transform-origin:100px 100px;animation:turn 4.5s ease-in-out infinite}
+@keyframes shut{0%,30%,100%{transform:scale(1)}40%{transform:scale(.12)}48%{transform:scale(1)}}
+@keyframes turn{0%,30%,100%{transform:rotate(0)}40%{transform:rotate(55deg)}48%{transform:rotate(0)}}
+.scene .flash{position:absolute;inset:-14px;border-radius:50%;background:#fff;opacity:0;animation:fl 4.5s ease-out infinite;pointer-events:none}
+@keyframes fl{0%,41%,100%{opacity:0}42%{opacity:.95}52%{opacity:0}}
+.count{position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:8px;padding:0 12px;font-weight:700;font-size:14px;white-space:nowrap}
+.title{font-family:var(--fd);font-size:54px;line-height:1.25;margin-top:16px}
+.title span{color:var(--acc);-webkit-text-stroke:1.5px var(--ink)}
+.lead{font-size:16px;margin:2px 0 0}
+.ticker{overflow:hidden;border-block:2px solid var(--press);margin:22px -16px 20px;padding:8px 0;white-space:nowrap;background:var(--surface);font-size:14px;font-weight:500}
+.ticker div{display:inline-block;animation:tk 36s linear infinite;padding-inline-start:100%}
+.ticker b{color:var(--acc);margin:0 11px}
+@keyframes tk{to{transform:translateX(100%)}}
+.cover .acts{margin-top:auto}
+
+/* الدخول */
+.ppick{width:126px;height:126px;margin:6px auto 0;border:2px dashed var(--press);border-radius:30%;display:grid;place-items:center;cursor:pointer;overflow:hidden;background:var(--surface);text-align:center;font-size:14px;color:var(--ink2);line-height:1.5}
+.ppick img{width:100%;height:100%;object-fit:cover}
+.gpick{width:100%;height:auto;aspect-ratio:4/3;border-radius:12px;max-height:240px}
+.picks{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.picks .btn{width:auto;flex:none;padding:0 14px}
+
+/* اللوبي */
+.ticket{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.qr{width:112px;height:112px;border:2px solid var(--press);border-radius:8px;background:#fff;padding:5px;display:grid;place-items:center}
+.qr img,.qr canvas{width:100%;height:100%;image-rendering:pixelated}
+.code{font-size:30px;font-weight:700;letter-spacing:6px;direction:ltr;text-align:right}
+.linkrow{grid-column:1/-1;border-top:2px dashed var(--line);padding-top:12px;display:grid;gap:10px}
+.plist{display:flex;flex-wrap:wrap;gap:8px}
+.pl{display:flex;align-items:center;gap:7px;border:2px solid var(--press);border-radius:12px;padding:3px 10px 3px 3px;background:var(--surface);font-weight:500;font-size:14px;cursor:pointer;animation:pop .35s ease}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+.pl.off{opacity:.45}
+.pl .b{font-size:11px;background:var(--acc);color:var(--on);border:1.5px solid var(--press);border-radius:6px;padding:0 5px}
+.pl .rd{font-size:12px}
+.pl.out{opacity:.35;text-decoration:line-through}
+.pl.done{border-color:var(--green)}
+.teams{display:grid;gap:10px}
+.team{border:2px solid var(--press);border-radius:12px;background:var(--surface);padding:10px;box-shadow:3px 3px 0 var(--press)}
+.team h4{margin:0 0 8px;font-family:var(--fd);font-size:17px;display:flex;align-items:center;gap:8px}
+.team h4 i{width:14px;height:14px;border-radius:4px;border:2px solid var(--press);display:inline-block}
+.team .plist{gap:6px}
+.camprep{display:flex;gap:12px;align-items:center}
+.camprep .mini{width:84px;height:84px;border-radius:14px;border:2px solid var(--press);overflow:hidden;background:var(--camb);flex:none;position:relative}
+.camprep video{width:100%;height:100%;object-fit:cover}
+.camprep b{display:block}
+.camprep p{margin:0;font-size:13px;color:var(--ink2)}
+.sumrow{display:flex;flex-wrap:wrap;gap:8px;font-size:13px}
+.sumrow span{border:1.5px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.edit-hint{font-size:12px;color:var(--ink2);margin-top:6px}
+
+/* العجلة */
+.wheelbox{position:relative;width:min(84vw,330px);aspect-ratio:1;margin:8px auto 0}
+.wheelbox .ptr{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:24px solid var(--ink);z-index:2;filter:drop-shadow(0 2px 0 var(--surface))}
+.wheel{width:100%;height:100%;border-radius:50%;border:3px solid var(--press);box-shadow:4px 4px 0 var(--press);overflow:hidden;background:var(--surface)}
+.wheel svg{width:100%;height:100%;display:block;transition:transform 3.4s cubic-bezier(.17,.7,.12,1)}
+.wheel text{font-size:17px}
+.hubb{position:absolute;inset:0;margin:auto;width:54px;height:54px;border-radius:50%;background:var(--ink);border:3px solid var(--surface);display:grid;place-items:center;color:var(--bg);font-size:22px}
+.gcard{margin-top:16px;animation:in .4s ease}
+.gname{display:flex;align-items:center;gap:10px}
+.gico{width:44px;height:44px;border:2px solid var(--press);border-radius:12px;background:var(--acc);display:grid;place-items:center;flex:none;color:#1A1C24}
+.gico svg{width:24px;height:24px}
+.gname h3{font-size:23px;line-height:1.2}
+.gname p{margin:0;font-size:13px;color:var(--ink2)}
+.how{margin:10px 0 0;font-size:14px;border-top:2px dashed var(--line);padding-top:10px}
+.bet{margin-top:12px;border:2px solid var(--press);border-radius:12px;padding:10px 12px;background:color-mix(in srgb,var(--acc) 18%,var(--surface));font-size:14px}
+.bet b{display:block}
+.x2{display:inline-block;background:var(--red);color:#fff;border:2px solid var(--press);border-radius:8px;padding:0 8px;font-weight:700;font-size:13px;margin-inline-start:6px}
+.whoplays{margin-top:10px;font-size:13px;color:var(--ink2)}
+.whoplays b{color:var(--ink)}
+
+/* اللعب */
+.qh{display:flex;justify-content:space-between;align-items:center;font-weight:500;font-size:14px}
+.prog{height:8px;border:2px solid var(--press);border-radius:99px;margin:7px 0 12px;overflow:hidden;background:var(--surface)}
+.prog b{display:block;height:100%;background:var(--acc);transition:width .4s}
+.cam{position:relative;margin-top:12px;aspect-ratio:3/4;max-height:52dvh;width:100%;border:2px solid var(--press);border-radius:12px;background:var(--camb);overflow:hidden;box-shadow:3px 3px 0 var(--press)}
+.cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cam video.mirror{transform:scaleX(-1)}
+.cam canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.cam.dark video{opacity:0}
+.cam.nocam{display:grid;place-items:center}
+.cam .c{position:absolute;width:20px;height:20px;border:0 solid #fff;z-index:2}
+.cam .c1{top:10px;right:10px;border-top-width:2.5px;border-right-width:2.5px}
+.cam .c2{top:10px;left:10px;border-top-width:2.5px;border-left-width:2.5px}
+.cam .c3{bottom:10px;right:10px;border-bottom-width:2.5px;border-right-width:2.5px}
+.cam .c4{bottom:10px;left:10px;border-bottom-width:2.5px;border-left-width:2.5px}
+.live{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.4);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 10px;z-index:2;white-space:nowrap}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--red);animation:rec 1s infinite}
+@keyframes rec{50%{opacity:.25}}
+.status{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--ink);border:2px solid var(--press);font-size:13px;font-weight:700;border-radius:9px;padding:2px 10px;white-space:nowrap;z-index:3}
+.status.ok{background:var(--green);color:#fff}
+.status.warn{background:#F2B630;color:#1A1C24}
+.status.bad{background:var(--red);color:#fff}
+.cd{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--fd);font-size:110px;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.4);z-index:3;pointer-events:none}
+.bang{position:absolute;inset:0;background:#fff;z-index:5;animation:bang .5s ease-out forwards;pointer-events:none}
+@keyframes bang{from{opacity:.95}to{opacity:0}}
+.gfx{position:absolute;inset:0;display:grid;place-items:center;z-index:4;pointer-events:none;opacity:0}
+.gfx.on{animation:gfx 1.4s ease forwards}
+@keyframes gfx{0%{opacity:0;transform:scale(.7)}12%{opacity:1;transform:scale(1)}85%{opacity:1}100%{opacity:0}}
+.gfx .pop{font-size:64px;filter:drop-shadow(0 4px 0 rgba(0,0,0,.3))}
+.gfx .pop.sm{font-size:30px;font-weight:700;color:#fff;background:rgba(0,0,0,.45);padding:4px 14px;border-radius:12px;font-family:var(--fd)}
+.gfx .joke{align-self:start;margin:44px 14px 0;background:var(--surface);color:var(--ink);border:2px solid var(--press);border-radius:12px;padding:10px 12px;font-size:15px;font-weight:500;box-shadow:3px 3px 0 var(--press);text-align:center}
+.gfx .joke span{display:block;font-size:30px}
+.ghud{min-height:10px}
+.score{display:flex;align-items:baseline;justify-content:center;gap:8px;margin-top:10px}
+.score b{font-size:34px;font-weight:700;line-height:1}
+.score span{font-size:13px;color:var(--ink2);font-weight:500}
+.gdone{text-align:center;margin-top:12px}
+.gdone b{display:block;font-family:var(--fd);font-size:24px}
+.gdone span{font-size:13px;color:var(--ink2)}
+.tm{display:flex;align-items:center;gap:10px;margin-top:12px}
+.tm>b{font-size:28px;font-weight:700;line-height:1;min-width:40px;text-align:center}
+.tm>span{font-size:12px;color:var(--ink2);font-weight:500;white-space:nowrap}
+.tmbar{flex:1;height:12px;border:2px solid var(--press);border-radius:99px;overflow:hidden;background:var(--surface)}
+.tmbar b{display:block;height:100%;width:100%;background:var(--acc);transition:width .15s linear}
+.bigcmd{margin-top:12px;text-align:center;font-family:var(--fd);font-size:40px;border:2px solid var(--press);border-radius:12px;background:var(--surface);box-shadow:3px 3px 0 var(--press);padding:4px}
+.emo{display:flex;align-items:center;gap:12px;margin-top:12px;border:2px solid var(--press);border-radius:12px;background:var(--surface);box-shadow:3px 3px 0 var(--press);padding:8px 12px}
+.emo>span{font-size:46px;line-height:1}
+.emo>div{flex:1}
+.emo b{font-family:var(--fd);font-size:18px}
+.mbar{height:10px;border:2px solid var(--press);border-radius:99px;overflow:hidden;margin-top:4px}
+.mbar b{display:block;height:100%;width:0;background:var(--green);transition:width .15s}
+.swatch{display:flex;align-items:center;gap:12px;margin-top:12px;border:2px solid var(--press);border-radius:12px;background:var(--surface);box-shadow:3px 3px 0 var(--press);padding:8px 12px}
+.swatch>span{width:52px;height:52px;border-radius:12px;border:2px solid var(--press);flex:none}
+.swatch>span.my{width:34px;height:34px;border-radius:50%;margin-inline-start:auto;background:repeating-linear-gradient(45deg,var(--line) 0 4px,transparent 4px 8px)}
+.swatch small{display:block;font-size:12px;color:var(--ink2)}
+.swatch b{font-family:var(--fd);font-size:22px}
+.shoot{margin-top:12px}
+.watch{text-align:center;padding:30px 10px}
+.watch .av{margin:0 auto 10px}
+.boss{margin-top:16px;border:2px dashed var(--press);border-radius:12px;padding:12px}
+.boss .t{font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:8px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* النتائج */
+.rhead{text-align:center;margin-top:6px}
+.rhead small{font-size:13px;color:var(--ink2);font-weight:500}
+.rhead h3{font-size:24px}
+.shot{position:relative;margin:14px auto 0;width:170px;background:var(--surface);border:2px solid var(--press);box-shadow:3px 3px 0 var(--press);padding:8px 8px 28px;transform:rotate(-3deg)}
+.shot img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--camb)}
+.shot p{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;margin:0}
+.shot .tape{position:absolute;top:-9px;left:50%;width:58px;height:16px;transform:translateX(-50%) rotate(4deg);background:color-mix(in srgb,var(--acc) 75%,transparent);border:1.5px solid var(--press)}
+.rk{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1.5px solid var(--line);font-size:15px}
+.rk:first-child{border:0}
+.rk .p{width:20px;text-align:center;font-weight:700}
+.rk .nm{flex:1;font-weight:500;min-width:0}
+.rk .nm small{display:block;font-size:12px;color:var(--ink2);font-weight:400}
+.rk .v{font-size:13px;color:var(--ink2)}
+.rk .pt{min-width:34px;text-align:center;font-weight:700;font-size:14px;border-radius:7px;background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.rk .pt.z{background:transparent;color:var(--ink2)}
+.rk.me{background:color-mix(in srgb,var(--acc) 14%,transparent);border-radius:10px;padding-inline:6px}
+.tdot{width:12px;height:12px;border-radius:4px;border:2px solid var(--press);flex:none}
+
+/* الحفلة */
+.party{text-align:center;padding-top:40px}
+.cnt{font-size:120px;font-weight:700;line-height:1;color:var(--acc);-webkit-text-stroke:3px var(--ink);font-family:var(--fd);animation:cn .8s ease}
+@keyframes cn{from{transform:scale(1.5);opacity:0}}
+.pod{animation:in .5s ease}
+.pod .av{margin:14px auto 0;border-width:3px;box-shadow:4px 4px 0 var(--press)}
+.ttl{display:inline-block;margin-top:10px;background:var(--acc);color:var(--on);border:2px solid var(--press);border-radius:10px;padding:2px 14px;font-weight:700;font-size:20px}
+#cf{position:fixed;inset:0;pointer-events:none;z-index:60}
+
+/* النهائية */
+.star{display:flex;align-items:center;gap:14px;background:var(--acc);color:var(--on);border:2px solid var(--press);border-radius:12px;box-shadow:3px 3px 0 var(--press);padding:12px 14px;margin-top:6px}
+.star small{display:block;font-size:13px;font-weight:500;opacity:.85}
+.star b{font-family:var(--fd);font-size:22px}
+.pr{display:grid;grid-template-columns:22px auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1.5px solid var(--line)}
+.pr:first-child{border:0}
+.pr .r{font-weight:700;text-align:center}
+.pr .nm{font-weight:700}
+.pr .t{font-size:13px}
+.pr .t span{background:color-mix(in srgb,var(--acc) 35%,transparent);border-radius:6px;padding:0 6px;font-weight:500}
+.pr .t i{font-style:normal;color:var(--ink2)}
+.pr .pts{font-weight:700;font-size:18px;text-align:center}
+.pr .pts small{display:block;font-size:11px;color:var(--ink2);font-weight:400}
+.pr.me{background:color-mix(in srgb,var(--acc) 12%,transparent);border-radius:10px;padding-inline:8px}
+details.qd{border-top:1.5px solid var(--line);padding:10px 0}
+details.qd:first-child{border:0}
+details.qd summary{cursor:pointer;font-weight:500;list-style:none;display:flex;gap:8px;align-items:center}
+details.qd summary::-webkit-details-marker{display:none}
+.gl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gl span{font-size:12px;border:1.5px solid var(--line);border-radius:999px;padding:1px 9px}
+.gl span.w{border-color:var(--press);background:color-mix(in srgb,var(--acc) 30%,transparent)}
+.story{margin:14px auto 12px;max-width:250px;border:2px solid var(--press);border-radius:12px;overflow:hidden;box-shadow:3px 3px 0 var(--press);aspect-ratio:9/16;background:var(--surface)}
+.story img{width:100%;height:100%;display:block}
+.install{border:2px dashed var(--line);border-radius:12px;padding:12px 14px;margin-top:18px;font-size:14px}
+.install b{display:block;margin-bottom:2px}
+.endsig{font-size:12px;color:var(--ink2);text-align:center;margin-top:18px}
+
+/* الشيتات */
+.sheet{position:fixed;inset:0;background:rgba(10,10,14,.55);z-index:45;display:none;align-items:flex-end;justify-content:center}
+.sheet.on{display:flex;animation:fd .2s ease}
+@keyframes fd{from{opacity:0}}
+.sheet .in{width:100%;max-width:480px;max-height:88dvh;overflow:auto;background:var(--bg);border:2px solid var(--press);border-bottom:0;border-radius:18px 18px 0 0;padding:14px 16px 24px;animation:up .25s ease}
+@keyframes up{from{transform:translateY(40px)}}
+.sheet .grab{width:44px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 10px}
+.sheet h3{font-size:20px;margin-bottom:6px}
+.help ol{margin:8px 0 0;padding-inline-start:20px;display:grid;gap:7px;font-size:15px}
+.help h4{margin:14px 0 4px;font-size:15px}
+.help .by{margin-top:16px;border-top:2px dashed var(--line);padding-top:12px;font-size:14px;color:var(--ink2);text-align:center}
+.help .by b{color:var(--ink)}
+.netbar{position:fixed;top:0;left:0;right:0;z-index:40;background:var(--red);color:#fff;text-align:center;font-size:13px;font-weight:500;padding:5px 10px;transform:translateY(-100%);transition:transform .25s}
+.netbar.on{transform:none}
+.wait{text-align:center;padding-top:50px}
+.wait .scene{width:150px;height:150px}
+.claim{position:fixed;left:12px;right:12px;bottom:14px;z-index:42;max-width:456px;margin:0 auto;background:var(--surface);border:2px solid var(--press);border-radius:14px;box-shadow:3px 3px 0 var(--press);padding:12px 14px;display:none}
+.claim.on{display:block;animation:up .3s ease}
+.claim p{margin:0 0 10px;font-size:14px;color:var(--ink2)}
+.crop{position:fixed;inset:0;background:rgba(10,10,14,.9);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;color:#fff}
+.crop.on{display:flex}
+.frame{width:min(84vw,330px);aspect-ratio:var(--ar,1);position:relative;overflow:hidden;touch-action:none;border-radius:12px;background:#000;outline:2px solid #fff}
+.frame img{position:absolute;left:50%;top:50%;max-width:none;user-select:none;-webkit-user-drag:none}
+.crop input,.crop .row{width:min(84vw,330px)}
+.selfie video{width:min(84vw,330px);aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:2px solid #fff;transform:scaleX(-1);background:#000}
+.selfie .cdn{position:absolute;font-family:var(--fd);font-size:100px;color:#fff;text-shadow:0 4px 0 #000}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,90px);background:var(--ink);color:var(--bg);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:500;z-index:70;transition:transform .25s;visibility:hidden;max-width:90vw;text-align:center}
+.toast.on{transform:translate(-50%,0);visibility:visible}
+.demo{position:fixed;top:0;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:1px 10px;border-radius:0 0 8px 8px;z-index:30}
+.confirm .in{text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="demo hide" id="demoTag">جرّب لحالك</div>
+<div class="netbar" id="netbar"></div>
+<canvas id="cf"></canvas>
+<div class="app">
+<header class="hdr">
+  <button class="hb" id="helpB" aria-label="التعليمات"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>التعليمات</button>
+  <span class="hcode" id="hcode"></span>
+  <button class="ib" id="themeB" aria-label="الوضع الفاتح أو الداكن"></button>
+</header>
+
+<!-- الغلاف -->
+<section class="screen on cover" id="s-cover">
+  <div class="scene" id="lens"></div>
+  <h1 class="title">قعدة تصوير<span>.</span></h1>
+  <p class="lead">قرّب وجّك من الكاميرا… وهي الحَكَم.</p>
+  <div class="ticker"><div>كل واحد بيلعب قدّام كاميرا موبايله<b>·</b>الكل بيبلّش سوا<b>·</b>عجلة الحظ بتختار اللعبة<b>·</b>الصور ما بتطلع من موبايلك<b>·</b>فردي أو فرق<b>·</b>الأول بياخد لقب «المعلّم»</div></div>
+  <div class="acts col">
+    <button class="btn" id="hostB">افتح قعدة</button>
+    <button class="btn ghost" id="codeB">عندي كود</button>
+  </div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<!-- الكود -->
+<section class="screen" id="s-code">
+  <div class="top"><button class="ib" data-back="cover" aria-label="رجوع"></button><h2>ادخل عالقعدة</h2><span style="width:40px"></span></div>
+  <span class="label">كود القعدة</span>
+  <input class="field" id="codeIn" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="5 أحرف" style="direction:ltr;text-align:center;letter-spacing:8px;font-size:24px;font-weight:700">
+  <div style="margin-top:18px"><button class="btn" id="codeGo" disabled>كمّل</button></div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<!-- أنا -->
+<section class="screen" id="s-me">
+  <div class="top"><button class="ib" data-back="cover" aria-label="رجوع"></button><h2>قبل ما نبلّش</h2><span style="width:40px"></span></div>
+  <label class="ppick" id="pp">صورتك<br>(اختياري)</label>
+  <div class="picks"><button class="btn sm ghost" data-pick="me">من الصور</button><button class="btn sm ghost" data-selfie="me">التقط سيلفي</button></div>
+  <span class="label">اسمك (اختياري)</span>
+  <input class="field" id="nm" maxlength="16" autocomplete="off" placeholder="الاسم">
+  <span class="label">شب ولا صبية؟</span>
+  <div class="seg" id="gen"><button data-g="m">شب</button><button data-g="f">صبية</button></div>
+  <div style="margin-top:22px"><button class="btn" id="meGo" disabled>فوت</button></div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<section class="screen" id="s-wait"><div class="wait" id="waitBody"></div></section>
+
+<!-- اللوبي -->
+<section class="screen" id="s-lobby">
+  <div class="card ticket" id="ticket">
+    <div class="qr" id="qr"></div>
+    <div><div class="mut" style="font-size:14px">امسحوا الكود أو اكتبوه</div><div class="code" id="code"></div></div>
+    <div class="linkrow"><div class="row"><button class="btn sm ghost" id="copyB">انسخ الرابط</button><button class="btn sm" id="shareB">ابعت الرابط</button></div></div>
+  </div>
+  <div class="card camprep" style="margin-top:14px" id="camPrep">
+    <div class="mini"><video id="prepV" autoplay muted playsinline class="mirror" style="transform:scaleX(-1)"></video></div>
+    <div style="flex:1"><b id="prepT">جهّز الكاميرا</b><p id="prepP">لازم تسمح للكاميرا قبل ما نبلّش، والكشف كله على موبايلك.</p>
+      <button class="btn sm" id="prepB" style="margin-top:8px">جهّز الكاميرا</button></div>
+  </div>
+  <div id="lobbyPlayers"></div>
+  <div id="setBox"></div>
+  <div style="margin-top:20px" id="startBox"></div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<!-- العجلة -->
+<section class="screen" id="s-wheel">
+  <div class="qh"><span>لعبة <span class="n" id="wn"></span> من <span class="n" id="wt"></span></span><span class="mut" id="wmode"></span></div>
+  <div class="prog"><b id="wpg"></b></div>
+  <div class="wheelbox"><span class="ptr"></span><div class="wheel" id="wheel"></div><div class="hubb">📷</div></div>
+  <div id="wbody"></div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<!-- اللعب -->
+<section class="screen" id="s-play">
+  <div class="qh"><span>لعبة <span class="n" id="pn"></span> من <span class="n" id="pt"></span></span><span class="mut" id="pmode"></span></div>
+  <div class="prog"><b id="ppg"></b></div>
+  <div class="card"><div class="gname" id="pgame"></div></div>
+  <div id="stage"></div>
+  <div class="plist" id="pplist" style="justify-content:center;margin-top:14px"></div>
+  <div class="boss hide" id="pboss"><div class="t">أدوات الريس</div><div class="g2"><button class="btn sm ghost" id="replayB">عيد اللعبة</button><button class="btn sm red" id="closeB">سكّر الجولة</button></div></div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<!-- نتيجة الجولة -->
+<section class="screen" id="s-res">
+  <div class="rhead"><small id="rsub"></small><h3 id="rtitle"></h3></div>
+  <div id="rshot"></div>
+  <div class="card" style="margin-top:16px;padding-block:4px" id="rlist"></div>
+  <div id="rtot" style="margin-top:12px"></div>
+  <div class="col" style="margin-top:16px" id="rbtns"></div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<!-- قبل الكشف -->
+<section class="screen" id="s-wrap">
+  <div class="top"><span style="width:40px"></span><h2>خلصت الألعاب</h2><span style="width:40px"></span></div>
+  <p class="mut" style="margin:0;text-align:center">قبل الكشف، عرّفوا القعدة. كله اختياري.</p>
+  <span class="label">نوع القعدة</span>
+  <div class="chips" id="gt"></div>
+  <div class="row hide" id="gtIn" style="margin-top:8px"><input class="field" id="gtc" maxlength="16" placeholder="اكتب نوع القعدة"><button class="btn sm" id="gtcB" style="flex:none;width:auto">تمام</button></div>
+  <span class="label">اسمها</span>
+  <input class="field" id="gn" maxlength="22" placeholder="مثلاً: سهرة الخميس">
+  <span class="label">صورة جماعية</span>
+  <label class="ppick gpick" id="gp">خدوا سيلفي سوا<br>أو اختاروا صورة</label>
+  <div class="picks"><button class="btn sm ghost" data-pick="group">من الصور</button><button class="btn sm ghost" data-selfie="group">سيلفي جماعي (مؤقت)</button></div>
+  <div class="col" style="margin-top:22px">
+    <button class="btn red" id="partyB">حفلة الكشف</button>
+    <button class="btn ghost" id="allB">اكشف دفعة وحدة</button>
+  </div>
+  <div class="sig">إعداد م. إياد حلوبي</div>
+</section>
+
+<section class="screen party" id="s-party"><div id="pb"></div></section>
+
+<!-- النتيجة النهائية -->
+<section class="screen" id="s-final">
+  <div class="top"><span style="width:40px"></span><h2 id="fh"></h2><span style="width:40px"></span></div>
+  <div id="starBox"></div>
+  <div class="seg" style="margin-top:16px" id="ftab"><button class="on" data-t="p">الترتيب</button><button data-t="q">كل الألعاب</button></div>
+  <div class="card" style="margin-top:12px;padding-block:6px" id="resP"></div>
+  <div class="card hide" style="margin-top:12px" id="resQ"></div>
+
+  <span class="label" style="margin-top:26px">صورتك للستوري</span>
+  <div class="seg" id="kind"><button class="on" data-v="rank">ستوري الترتيب<small>مركزك ولقبك</small></button><button data-v="album">ألبوم قعدتي<small>لقطاتك من الألعاب</small></button></div>
+  <div class="seg" id="lay" style="margin-top:8px"><button class="on" data-v="cover">غلاف</button><button data-v="pola">بولاريد</button><button data-v="card">كرت</button></div>
+  <div class="seg" id="ith" style="margin-top:8px"><button class="on" data-v="light">فاتح</button><button data-v="dark">داكن</button></div>
+  <div class="story" id="story"></div>
+  <div class="col"><button class="btn" id="dlB">حمّل الصورة</button><a class="btn ghost" href="https://instagram.com/eyad.hloubi" target="_blank" rel="noopener">شارك مع صحابك</a></div>
+  <div class="install" id="install"><b>خلّي اللعبة عموبايلك</b><span>أندرويد: قائمة المتصفح ⋮ ← «إضافة إلى الشاشة الرئيسية».<br>آيفون: من Safari زر المشاركة ← «إضافة إلى الشاشة الرئيسية».</span>
+    <button class="btn sm hide" id="instB" style="margin-top:10px">نزّلها كتطبيق</button></div>
+  <div class="col hide" style="margin-top:16px" id="hostEnd">
+    <button class="btn flat sm" id="editG">عدّل نوع القعدة أو اسمها أو صورتها</button>
+    <button class="btn flat sm" id="againB">دورة جديدة بنفس القعدة</button>
+  </div>
+  <div class="endsig">@eyad.hloubi · صار بدها قعدة.</div>
+</section>
+</div>
+
+<!-- التعليمات -->
+<div class="sheet" id="shHelp"><div class="in help">
+  <div class="grab"></div>
+  <h3>كيف منلعب «قعدة تصوير»؟</h3>
+  <ol>
+    <li>الريس بيفتح القعدة، والباقي بيمسحوا الـQR أو بيكتبوا الكود من موبايلاتهم.</li>
+    <li>كل واحد بيجهّز كاميرته الأمامية ويسمحلها، وبيحط الموبايل قدّام وجّه.</li>
+    <li>عجلة الحظ بتختار اللعبة، والكل بيبلّش سوا بنفس اللحظة بعد العدّ 3، 2، 1.</li>
+    <li>الكاميرا هي الحَكَم: بتشوف الرمشة والضحكة والغمزة وحركة الراس، وبتحسب النتيجة لحالها.</li>
+    <li>بكل لعبة: الأول 3 نقاط، التاني 2، التالت 1. وبالآخر بينجمع كلشي.</li>
+    <li>بالآخر: الأول «المعلّم»، التاني «نائب المعلّم»، والتالت «بالكادر».</li>
+  </ol>
+  <h4>الأوضاع</h4>
+  <ol>
+    <li><b>فردي:</b> كل واحد لحالو.</li>
+    <li><b>الفريق كله:</b> كل الفريق بيلعب، ونتيجة الفريق هي معدّل أعضائه.</li>
+    <li><b>كل عضو جولة:</b> بكل لعبة واحد من كل فريق بيلعب، بالدور.</li>
+    <li><b>الرهان:</b> قائد الفريق بيقدر يطلب يضاعف نقاط اللعبة، وإذا وافق قادة الفرق التانية بتصير النقاط ×2.</li>
+  </ol>
+  <h4>أدوات الريس</h4>
+  <ol>
+    <li>بيختار الوضع وعدد الألعاب، وبيوزّع الفرق ويختار القادة.</li>
+    <li>«مرّر» إذا ما عجبتكن اللعبة، والعجلة بتدور من جديد.</li>
+    <li>«عيد اللعبة» إذا ما فهموها، والنتيجة بتنلغى.</li>
+    <li>بيعدّل الأسماء، بيطلّع حدا، أو بيسلّم الريس لغيره (اكبس على اسم اللاعب).</li>
+    <li>إذا الريس غاب أكتر من 45 ثانية، أي حدا بيقدر يستلم مكانه.</li>
+  </ol>
+  <div class="by">مبنية على تقنية كشف ملامح الوجه (Face Landmarks) اللي بتشتغل على الموبايل نفسه، وما في ولا لقطة من الكاميرا أثناء اللعب بتطلع لبرا موبايلك.<br><br>اللعبة من إعداد <b>م. إياد حلوبي</b><br><span dir="ltr">@eyad.hloubi</span> · صار بدها قعدة.</div>
+  <div style="margin-top:14px" class="col"><button class="btn ghost sm" data-close>فهمت</button><button class="btn flat sm hide" id="leaveB">اطلع من القعدة</button></div>
+</div></div>
+
+<!-- إدارة لاعب -->
+<div class="sheet" id="shPl"><div class="in">
+  <div class="grab"></div>
+  <div class="row" style="align-items:center;gap:12px;flex:none" id="plHead"></div>
+  <span class="label">الاسم</span>
+  <div class="row"><input class="field" id="plName" maxlength="16"><button class="btn sm" id="plNameB" style="flex:none;width:auto">عدّل</button></div>
+  <div id="plTeam"></div>
+  <div class="col" style="margin-top:16px">
+    <button class="btn ghost" id="hoB">سلّمه الريس</button>
+    <button class="btn red" id="kkB">طلّعه من القعدة</button>
+    <button class="btn flat sm" data-close>رجوع</button>
+  </div>
+</div></div>
+
+<!-- تعديل ملفي -->
+<div class="sheet" id="shEdit"><div class="in">
+  <div class="grab"></div>
+  <h3>عدّل اسمك وصورتك</h3>
+  <label class="ppick" id="epp"></label>
+  <div class="picks"><button class="btn sm ghost" data-pick="edit">من الصور</button><button class="btn sm ghost" data-selfie="edit">سيلفي</button><button class="btn sm flat hide" id="eppDel">شيل الصورة</button></div>
+  <span class="label">اسمك</span>
+  <input class="field" id="enm" maxlength="16" autocomplete="off" placeholder="الاسم">
+  <span class="label">شب ولا صبية؟</span>
+  <div class="seg" id="egen"><button data-g="m">شب</button><button data-g="f">صبية</button></div>
+  <div class="col" style="margin-top:18px"><button class="btn" id="eSave">احفظ</button><button class="btn flat sm" data-close>إلغاء</button></div>
+</div></div>
+
+<!-- تأكيد -->
+<div class="sheet confirm" id="shConf"><div class="in">
+  <div class="grab"></div>
+  <h3 id="confT"></h3><p class="mut" id="confP" style="margin:4px 0 0"></p>
+  <div class="col" style="margin-top:16px"><button class="btn red" id="confY">أكيد</button><button class="btn flat sm" data-close>لا، رجوع</button></div>
+</div></div>
+
+<div class="claim" id="claim"><b>الريس غايب من فترة</b><p>إذا ما رجع، حدا منكن بيقدر يستلم القيادة ويكمّل القعدة.</p><button class="btn sm" id="claimB">استلم الريس</button></div>
+
+<div class="crop" id="crop">
+  <div class="frame" id="frame"><img id="cimg" alt=""></div>
+  <input type="range" id="zm" min="0" max="1" step="0.001" value="0" aria-label="تكبير">
+  <div style="font-size:13px;opacity:.8">اسحب وكبّر لتظبط الصورة</div>
+  <div class="row"><button class="btn sm ghost" id="cropX">إلغاء</button><button class="btn sm" id="cropOk">تمام</button></div>
+</div>
+<div class="crop selfie" id="selfie">
+  <div style="position:relative;display:grid;place-items:center"><video id="sv" autoplay muted playsinline></video><span class="cdn" id="scd"></span></div>
+  <div class="row"><button class="btn sm ghost" id="sX">إلغاء</button><button class="btn sm" id="sShot">📸 صوّر</button></div>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/qrcode.js"></script>
+<script src="games.js"></script>
+<script src="story.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
