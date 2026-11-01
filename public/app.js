@@ -22,7 +22,10 @@ const saveMe = () => LS.set('me', { name: me.name, g: me.g, photo: me.photo });
 // ---------- حالة ----------
 let S = null, isHost = false, hostKey = null, code = null, offset = 0, ws = null, wsOk = false, retry = 0, joinedOnce = false;
 let pendingRole = null, submitted = false; // 'host' | 'join'
-let camReady = false, simMode = false;
+let camReady = false, simMode = false, calApi = null;
+const PH = {}; // الصور: pid/group -> dataURL (برا الحالة)
+const pending = {}; // rid -> نتيجتي اللي لسّا ما وصلت للريس
+const finished = LS.get('fin', {}); // rid -> نتيجتي (للرجوع بعد تحديث الصفحة)
 let curRid = null, gameApi = null, myResult = null, album = [], lastShot = null;
 let spinShown = null, partyShown = null;
 const srvNow = () => Date.now() + offset;
@@ -34,7 +37,8 @@ function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('o
 function sheet(id, on) { $('#' + id).classList.toggle('on', on !== false); }
 $$('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s || e.target.closest('[data-close]')) s.classList.remove('on'); }));
 function confirmBox(t, p, yes, cb) { $('#confT').textContent = t; $('#confP').textContent = p || ''; $('#confY').textContent = yes || 'أكيد'; $('#confY').onclick = () => { sheet('shConf', false); cb(); }; sheet('shConf'); }
-function av(p, s) { const ini = (p && p.name ? p.name.trim()[0] : '؟') || '؟'; return `<span class="av" style="--s:${s || 32}px;--pc:${p && p.color || '#ccc'}">${p && p.photo ? `<img src="${p.photo}" alt="">` : esc(ini)}</span>`; }
+const photoOf = p => p ? (p.photo || PH[p.pid] || null) : null;
+function av(p, s) { const ini = (p && p.name ? p.name.trim()[0] : '؟') || '؟', ph = photoOf(p); return `<span class="av" style="--s:${s || 32}px;--pc:${p && p.color || '#ccc'}">${ph ? `<img src="${ph}" alt="">` : esc(ini)}</span>`; }
 const nameOf = p => p ? (p.name || (p.g === 'f' ? 'لاعبة' : 'لاعب') + ' ' + (p.num || '')) : '';
 const fem = p => p && p.g === 'f';
 const ICONS = {
@@ -71,7 +75,10 @@ function wsend(o) { if (DEMO) return; if (ws && ws.readyState === 1) ws.send(JSO
 setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'ping', c: Date.now() })); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !DEMO && (!ws || ws.readyState > 1)) connect(); });
 
-function profile() { return { name: me.name, g: me.g, photo: me.photo }; }
+function profile() { return { name: me.name, g: me.g }; }
+function sendPhoto(key, data) { PH[key] = data || null; if (!DEMO) wsend({ t: 'photo', code, key, data: data || null }); }
+function applyPhotos() { if (!S) return; S.players.forEach(p => (p.photo = PH[p.pid] || null)); if (S.group) S.group.photo = PH.group || null; }
+function lite() { return JSON.parse(JSON.stringify(S, (k, v) => (k === 'photo' ? undefined : v))); }
 function sendJoin() { wsend({ t: 'join', code, pid: myPid, profile: profile(), hostKey: isHost ? hostKey : (LS.get('hk_' + code, null) || undefined) }); }
 function doPending() {
   if (pendingRole === 'host') wsend({ t: 'create', pid: myPid });
@@ -86,12 +93,15 @@ function onMsg(m) {
     case 'created':
       code = m.code; hostKey = m.hostKey; isHost = true; joinedOnce = true; pendingRole = null;
       LS.set('sess', { code, at: Date.now() }); LS.set('hk_' + code, hostKey);
-      S = newState(); addPlayer(myPid, profile()); pushState(); render(); break;
+      S = newState(); addPlayer(myPid, profile()); if (me.photo) sendPhoto(myPid, me.photo); applyPhotos(); pushState(); render(); break;
+    case 'photo': PH[m.key] = m.data || null; if (S) { applyPhotos(); refreshLight(); } break;
     case 'joined':
       joinedOnce = true; pendingRole = null; code = m.code;
       LS.set('sess', { code, at: Date.now() });
-      if (m.host) { isHost = true; hostKey = m.hostKey; if (m.state) S = m.state; if (!S) S = newState(); ensureSelf(); pushState(); resumeTimers(); }
-      else { isHost = false; if (m.state) S = m.state; if (m.hostGone) $('#claim').classList.add('on'); }
+      if (m.photos) Object.assign(PH, m.photos);
+      if (me.photo && PH[myPid] !== me.photo) sendPhoto(myPid, me.photo);
+      if (m.host) { isHost = true; hostKey = m.hostKey; if (m.state) S = m.state; if (!S) S = newState(); ensureSelf(); applyPhotos(); pushState(); resumeTimers(); }
+      else { isHost = false; hostKey = null; if (m.state) { S = m.state; applyPhotos(); } if (m.hostGone) $('#claim').classList.add('on'); }
       if (!S) { waitScreen('عم نوصّلك بالقعدة…'); } else render();
       break;
     case 'err':
@@ -99,16 +109,16 @@ function onMsg(m) {
       if (m.e === 'kicked') kickedScreen();
       if (m.e === 'offline') toast('هالشخص مو متصل هلّق');
       break;
-    case 'state': if (!isHost) { S = m.state; render(); } break;
-    case 'joinReq': if (isHost) { addPlayer(m.pid, m.profile); pushState(); render(); } break;
-    case 'presence': if (isHost && S) { const p = pl(m.pid); if (p) { p.on = false; pushState(); render(); maybeCloseRound(); } } break;
+    case 'state': if (!isHost) { S = m.state; applyPhotos(); render(); flushPending(); } break;
+    case 'joinReq': if (isHost && S) { addPlayer(m.pid, m.profile); pushState(); render(); } break;
+    case 'presence': if (isHost && S) { const p = pl(m.pid); if (p && p.on !== !!m.on) { p.on = !!m.on; pushState(); render(); maybeCloseRound(); } } break;
     case 'act': if (isHost) hostAct(m.pid, m.a); break;
     case 'kicked': kickedScreen(); break;
     case 'hostGone': if (!isHost) $('#claim').classList.add('on'); break;
     case 'hostBack': case 'newHost': $('#claim').classList.remove('on'); if (m.t === 'newHost' && S) { const p = pl(m.pid); toast(p ? `${nameOf(p)} صار الريس` : 'في ريس جديد'); } break;
     case 'youHost':
       isHost = true; hostKey = m.hostKey; LS.set('hk_' + code, hostKey); $('#claim').classList.remove('on');
-      if (m.state) S = m.state; if (!S) S = newState(); ensureSelf(); S.hostPid = myPid; pushState(); render(); toast('صرت الريس 👑');
+      if (m.state) S = m.state; if (!S) S = newState(); ensureSelf(); applyPhotos(); S.hostPid = myPid; const mp = pl(myPid); if (mp) mp.on = true; pushState(); render(); toast('صرت الريس 👑');
       resumeTimers();
       break;
   }
@@ -129,12 +139,13 @@ function addPlayer(pid, prof) {
   let p = pl(pid);
   if (!p) {
     const used = S.players.map(x => x.color);
-    p = { pid, name: '', g: 'm', photo: null, color: COLORS.find(c => !used.includes(c)) || COLORS[S.players.length % COLORS.length], on: true, ready: false, team: null, num: S.players.length + 1 };
+    p = { pid, name: '', g: 'm', photo: null, joinedAt: Date.now(), color: COLORS.find(c => !used.includes(c)) || COLORS[S.players.length % COLORS.length], on: true, ready: false, team: null, num: S.players.length + 1 };
     S.players.push(p);
     if (S.settings.mode !== 'solo') autoTeam(p);
   }
   p.on = true;
-  if (prof) { if (prof.name != null) p.name = String(prof.name).slice(0, 16); if (prof.g) p.g = prof.g; if (prof.photo !== undefined) p.photo = prof.photo; }
+  if (prof) { if (prof.name != null) p.name = String(prof.name).slice(0, 16); if (prof.g) p.g = prof.g; }
+  p.photo = PH[pid] || null;
   return p;
 }
 function ensureSelf() { if (!pl(myPid)) addPlayer(myPid, profile()); }
@@ -143,7 +154,7 @@ function pushState(stat) {
   if (!isHost || !S) return;
   S.hostPid = myPid; S.v++;
   if (DEMO) return;
-  wsend({ t: 'state', code, hostKey, state: S, stat: stat || undefined });
+  wsend({ t: 'state', code, hostKey, state: lite(), stat: stat || undefined });
 }
 function teamsInit() {
   const n = S.settings.teams;
@@ -155,20 +166,21 @@ function teamsInit() {
 }
 function autoTeam(p) {
   if (!S.teams.length) return;
-  const cnt = S.teams.map((_, i) => S.players.filter(x => x.team === i && x.on).length);
+  const cnt = S.teams.map((_, i) => S.players.filter(x => x.team === i).length);
   p.team = cnt.indexOf(Math.min(...cnt)); fixCaps();
 }
-function fixCaps() { S.teams.forEach((t, i) => { const mem = S.players.filter(p => p.team === i && p.on); if (!t.cap || !mem.some(m => m.pid === t.cap)) t.cap = mem[0] ? mem[0].pid : null; }); }
-function shuffleTeams() { const ps = T.shuffle(S.players.filter(p => p.on), Math.random); ps.forEach((p, i) => (p.team = i % S.settings.teams)); S.teams.forEach(t => (t.cap = null)); fixCaps(); }
+function fixCaps() { S.teams.forEach((t, i) => { const mem = S.players.filter(p => p.team === i); if (!t.cap || !mem.some(m => m.pid === t.cap)) t.cap = (mem.find(m => m.on) || mem[0] || {}).pid || null; }); }
+function shuffleTeams() { const ps = T.shuffle(S.players.slice(), Math.random); ps.forEach((p, i) => (p.team = i % S.settings.teams)); S.teams.forEach(t => (t.cap = null)); fixCaps(); }
 const teamMode = () => S.settings.mode !== 'solo';
-function members(i) { return S.players.filter(p => p.team === i && p.on); }
+function members(i) { return S.players.filter(p => p.team === i); }
 
 function participants() {
-  const on = S.players.filter(p => p.on);
-  if (S.settings.mode === 'solo') return on.map(p => p.pid);
-  if (S.settings.mode === 'team') return on.filter(p => p.team != null).map(p => p.pid);
-  const n = S.history.length; // كل عضو جولة: بالدور
-  return S.teams.map((t, i) => { const m = members(i); return m.length ? m[n % m.length].pid : null; }).filter(Boolean);
+  // الكل بيلعب (حتى اللي اتصاله مقطوع هلّق، بيرجع وبيلعب). اللي طلع فعلاً الريس بيطلّعه.
+  if (S.settings.mode === 'solo') return S.players.map(p => p.pid);
+  if (teamMode()) S.players.forEach(p => { if (p.team == null) autoTeam(p); });
+  if (S.settings.mode === 'team') return S.players.filter(p => p.team != null).map(p => p.pid);
+  const n = S.history.length; // كل عضو جولة: بالدور، والأولوية للمتصلين
+  return S.teams.map((t, i) => { const m = members(i); if (!m.length) return null; for (let k = 0; k < m.length; k++) { const c = m[(n + k) % m.length]; if (c.on) return c.pid; } return m[n % m.length].pid; }).filter(Boolean);
 }
 
 function spin(keepSkip) {
@@ -193,7 +205,7 @@ function startRound() {
 let closeT = null;
 function scheduleAutoClose() {
   clearTimeout(closeT); const r = S.round; if (!r || !r.startAt) return;
-  const ms = r.startAt - srvNow() + (T.duration(r.game, r.seed) + 12) * 1000;
+  const ms = Math.max(r.startAt, r.lateUntil || 0) - srvNow() + (T.duration(r.game, r.seed) + 25) * 1000;
   closeT = setTimeout(() => { if (S.phase === 'play' && S.round && S.round.rid === r.rid) closeRound(); }, Math.max(1000, ms));
 }
 function resumeTimers() { if (S && S.phase === 'play') scheduleAutoClose(); }
@@ -205,18 +217,29 @@ function maybeCloseRound() {
 function closeRound() {
   clearTimeout(closeT);
   const r = S.round; if (!r || S.phase !== 'play') return;
-  const ent = entities(r);
-  ent.sort((a, b) => b.s - a.s);
-  ent.forEach(e => { e.rank = 1 + ent.filter(x => x.s > e.s).length; e.pts = ({ 1: 3, 2: 2, 3: 1 }[e.rank] || 0) * (r.bet && r.bet.on ? 2 : 1); if (!e.has || e.s <= 0) e.pts = 0; });
+  const ent = scoreRound(r.parts, r.res, r.bet && r.bet.on);
   ent.forEach(e => (S.totals[e.key] = (S.totals[e.key] || 0) + e.pts));
-  const rec = { n: r.n, game: r.game, ent, res: r.res, bet: r.bet && r.bet.on ? r.bet.by : null, rid: r.rid };
+  const rec = { n: r.n, game: r.game, ent, res: r.res, parts: r.parts.slice(), betOn: !!(r.bet && r.bet.on), bet: r.bet && r.bet.on ? r.bet.by : null, rid: r.rid };
   S.history.push(rec); S.played.push(r.game);
   S.phase = 'results';
   pushState(); render();
 }
+function scoreRound(parts, res, betOn) {
+  const ent = entities({ parts, res });
+  ent.sort((a, b) => b.s - a.s);
+  ent.forEach(e => { e.rank = 1 + ent.filter(x => x.s > e.s).length; e.pts = ({ 1: 3, 2: 2, 3: 1 }[e.rank] || 0) * (betOn ? 2 : 1); if (!e.has || e.s <= 0) e.pts = 0; });
+  return ent;
+}
+// نتيجة وصلت بعد ما تسكّرت الجولة: منضيفها ومنعيد الحساب
+function amend(h, pid, res) {
+  h.ent.forEach(e => (S.totals[e.key] = (S.totals[e.key] || 0) - e.pts));
+  h.res[pid] = res; if (!h.parts.includes(pid)) h.parts.push(pid);
+  h.ent = scoreRound(h.parts, h.res, h.betOn);
+  h.ent.forEach(e => (S.totals[e.key] = (S.totals[e.key] || 0) + e.pts));
+}
 function entities(r) {
   const res = r.res;
-  if (S.settings.mode === 'solo') return r.parts.map(pid => ({ key: pid, s: res[pid] ? res[pid].s : 0, has: !!res[pid], l: res[pid] ? res[pid].l : 'ما لعب', pids: [pid] }));
+  if (S.settings.mode === 'solo') return r.parts.filter(pid => pl(pid) || res[pid]).map(pid => ({ key: pid, s: res[pid] ? res[pid].s : 0, has: !!res[pid], l: res[pid] ? res[pid].l : 'ما لعب', pids: [pid] }));
   return S.teams.map((t, i) => {
     const pids = r.parts.filter(pid => { const p = pl(pid); return p && p.team === i; });
     const got = pids.filter(pid => res[pid]);
@@ -238,10 +261,25 @@ function hostAct(pid, a) {
   const p = pl(pid);
   switch (a.type) {
     case 'ready': if (p) { p.ready = !!a.v; pushState(); render(); } break;
-    case 'profile': if (p && S.phase === 'lobby') { addPlayer(pid, a.p); pushState(); render(); } break;
+    case 'profile': if (p) { addPlayer(pid, a.p); pushState(); render(); } break;
     case 'res': {
-      const r = S.round; if (!r || S.phase !== 'play' || a.rid !== r.rid || !r.parts.includes(pid) || r.res[pid]) return;
-      r.res[pid] = { s: +a.s || 0, l: String(a.l || '').slice(0, 40) }; pushState(); render(); maybeCloseRound(); break;
+      if (!p) return;
+      const res = { s: +a.s || 0, l: String(a.l || '').slice(0, 40) };
+      const r = S.round;
+      if (r && S.phase === 'play' && a.rid === r.rid) {
+        if (r.res[pid]) { pushState(); return; } // وصلت قبل: منأكد للاعب
+        if (!r.parts.includes(pid)) { if (S.settings.mode === 'relay') return; r.parts.push(pid); }
+        r.res[pid] = res; pushState(); render(); maybeCloseRound(); return;
+      }
+      const h = S.history.find(x => x.rid === a.rid);
+      if (h && !h.res[pid] && (S.settings.mode !== 'relay' || h.parts.includes(pid))) { amend(h, pid, res); pushState(); render(); }
+      else pushState();
+      break;
+    }
+    case 'late': { // لاعب بلّش متأخر (رجع بعد انقطاع)
+      const r = S.round; if (!r || S.phase !== 'play' || a.rid !== r.rid) return;
+      if (!r.parts.includes(pid) && S.settings.mode !== 'relay' && p) r.parts.push(pid);
+      r.lateUntil = Math.max(r.lateUntil || 0, Math.min(srvNow() + 4000, r.startAt + 90000)); scheduleAutoClose(); pushState(); render();
     }
     case 'bet': betAct(pid, a.v); break;
     case 'leave': if (p) { S.players = S.players.filter(x => x.pid !== pid); if (teamMode()) fixCaps(); pushState(); render(); maybeCloseRound(); } break;
@@ -331,30 +369,48 @@ function renderLobby() {
     $('#startBox').innerHTML = `<p class="mut" style="text-align:center;margin:0">الريس رح يبلّش اللعبة…</p>`;
   }
   updPrep();
+  if (!DEMO) T.Cam.ensureModel().catch(() => {});
 }
 
 // تجهيز الكاميرا
-function updPrep() {
-  const p = pl(myPid);
-  if (camReady) { $('#prepT').textContent = simMode ? 'بلا كاميرا (تجربة)' : 'الكاميرا جاهزة ✓'; if (simMode) $('#prepP').textContent = 'رح تنحسبلك نتايج تجريبية.'; $('#prepB').classList.add('hide'); if (!simMode && T.Cam.stream && !$('#prepV').srcObject) T.Cam.attach($('#prepV')); }
+function prepLoop() {
+  if (cur !== 'lobby' || !camReady || simMode) { prepLoop.on = false; return; }
+  prepLoop.on = true;
+  const v = $('#prepV'); if (!T.Cam.live()) T.Cam.revive(v).catch(() => {});
+  const f = T.Cam.detect(v);
+  $('#prepP').textContent = f ? 'شايفينك ✓ خلّي الموبايل قدّام وجّك.' : 'قرّب وجّك من الكاميرا لتتأكد إنها شايفتك.';
+  setTimeout(() => requestAnimationFrame(prepLoop), 300);
 }
+function updPrep() {
+  updPrepCard();
+  if (camReady) { $('#prepT').textContent = simMode ? 'بلا كاميرا (تجربة)' : 'الكاميرا جاهزة ✓'; if (simMode) $('#prepP').textContent = 'رح تنحسبلك نتايج تجريبية.'; $('#prepB').classList.add('hide'); if (!simMode && T.Cam.stream) { T.Cam.attach($('#prepV')); if (!prepLoop.on) prepLoop(); } }
+}
+function openCalib() {
+  show('calib');
+  calApi = T.calibrate($('#calibBody'), ok => {
+    calApi = null;
+    if (ok) { camReady = true; act({ type: 'ready', v: true }); toast('تمام! الكاميرا صارت تعرفك 👌'); }
+    render(); updPrep();
+  });
+}
+function updPrepCard() {
+  const has = !!T.Calib.get();
+  $('#prepB').textContent = has ? 'جهّز الكاميرا' : 'ابدأ المعايرة (نص دقيقة)';
+  $('#recalB').classList.toggle('hide', !has);
+  if (!camReady) { $('#prepT').textContent = has ? 'المعايرة محفوظة ✓' : 'عاير وجّك قبل اللعب'; $('#prepP').textContent = has ? 'جهّز الكاميرا، أو عيد المعايرة إذا تغيّر الضو أو المكان.' : 'الكاميرا بتتعرّف على وجّك: الحركة، الحواجب، الضحكة، والغمزات.'; }
+}
+$('#recalB').onclick = () => openCalib();
 $('#prepB').onclick = async () => {
+  if (!T.Calib.get() && !DEMO) return openCalib();
   const b = $('#prepB'); b.disabled = true; b.textContent = 'عم نجهّز…';
   try {
     await T.Cam.open('user'); T.Cam.attach($('#prepV'));
     $('#prepP').textContent = 'عم نحمّل كاشف الوجه…';
     await T.Cam.ensureModel();
-    camReady = true; act({ type: 'ready', v: true }); updPrep();
-    const loop = () => {
-      if (cur !== 'lobby') return;
-      const f = T.Cam.detect($('#prepV'));
-      $('#prepP').textContent = f ? 'شايفينك ✓ خلّي الموبايل قدّام وجّك.' : 'قرّب وجّك من الكاميرا لتتأكد إنها شايفتك.';
-      setTimeout(() => requestAnimationFrame(loop), 250);
-    };
-    loop();
+    b.disabled = false; camReady = true; act({ type: 'ready', v: true }); updPrep();
   } catch (e) {
     b.disabled = false; b.textContent = 'جرّب مرة تانية';
-    if (DEMO) { simMode = true; camReady = true; act({ type: 'ready', v: true }); updPrep(); toast('الكاميرا مو متاحة هون، رح نكمّل بنتايج تجريبية'); }
+    if (DEMO) { b.disabled = false; simMode = true; camReady = true; act({ type: 'ready', v: true }); updPrep(); toast('الكاميرا مو متاحة هون، رح نكمّل بنتايج تجريبية'); }
     else $('#prepP').textContent = 'ما قدرنا نفتح الكاميرا. اسمح للكاميرا من إعدادات المتصفح وجرّب.';
   }
 };
@@ -362,10 +418,10 @@ $('#prepB').onclick = async () => {
 // إدارة لاعب (الريس)
 let plTarget = null;
 function openPl(pid) {
-  const p = pl(pid); if (!p) return; plTarget = pid;
+  const p = pl(pid); if (!p) return; plTarget = pid; sheet('shPlayers', false);
   $('#plHead').innerHTML = `${av(p, 52)}<div><b style="font-size:18px">${esc(nameOf(p))}</b><div class="mut" style="font-size:13px">${p.on ? 'متصل' : 'مو متصل'} · ${p.ready ? 'الكاميرا جاهزة' : 'ما جهّز الكاميرا'}</div></div>`;
   $('#plName').value = p.name || '';
-  $('#plTeam').innerHTML = teamMode() && S.phase === 'lobby' ? `<span class="label">الفريق</span><div class="chips">${S.teams.map((t, i) => `<button class="chip ${p.team === i ? 'on' : ''}" data-mt="${i}">${esc(t.name)}</button>`).join('')}</div>
+  $('#plTeam').innerHTML = teamMode() && (S.phase === 'lobby' || S.phase === 'wheel' || S.phase === 'results') ? `<span class="label">الفريق</span><div class="chips">${S.teams.map((t, i) => `<button class="chip ${p.team === i ? 'on' : ''}" data-mt="${i}">${esc(t.name)}</button>`).join('')}</div>
     ${p.team != null ? `<button class="btn sm ghost" id="capB" style="margin-top:10px">${S.teams[p.team].cap === pid ? 'هو القائد ✓' : 'خلّيه قائد الفريق'}</button>` : ''}` : '';
   $$('[data-mt]').forEach(b => b.onclick = () => { p.team = +b.dataset.mt; fixCaps(); pushState(); render(); openPl(pid); });
   const cb = $('#capB'); if (cb) cb.onclick = () => { S.teams[p.team].cap = pid; pushState(); render(); openPl(pid); };
@@ -373,13 +429,14 @@ function openPl(pid) {
   sheet('shPl');
 }
 $('#plNameB').onclick = () => { const p = pl(plTarget); if (!p) return; p.name = $('#plName').value.trim().slice(0, 16); pushState(); render(); toast('انعدّل الاسم ✓'); openPl(plTarget); };
-$('#kkB').onclick = () => { const p = pl(plTarget); if (!p) return; confirmBox(`تطلّع ${nameOf(p)}؟`, 'ما رح يقدر يرجع لهالقعدة.', 'طلّعه', () => { wsend({ t: 'kick', code, hostKey, target: p.pid }); S.players = S.players.filter(x => x.pid !== p.pid); if (teamMode()) fixCaps(); if (S.round && S.round.parts) S.round.parts = S.round.parts.filter(x => x !== p.pid); sheet('shPl', false); pushState(); render(); maybeCloseRound(); }); };
-$('#hoB').onclick = () => { const p = pl(plTarget); if (!p) return; confirmBox(`تسلّم الريس لـ${nameOf(p)}؟`, 'رح يصير هو اللي ماسك اللعبة، وإنت بتكمّل كلاعب.', 'سلّمه', () => { S.hostPid = p.pid; S.v++; wsend({ t: 'handover', code, hostKey, target: p.pid, state: S }); isHost = false; hostKey = null; LS.set('hk_' + code, null); sheet('shPl', false); render(); }); };
+function kick(pid) { wsend({ t: 'kick', code, hostKey, target: pid }); S.players = S.players.filter(x => x.pid !== pid); if (teamMode()) fixCaps(); if (S.round && S.round.parts) S.round.parts = S.round.parts.filter(x => x !== pid); }
+$('#kkB').onclick = () => { const p = pl(plTarget); if (!p) return; confirmBox(`تطلّع ${nameOf(p)}؟`, 'ما رح يقدر يرجع لهالقعدة، ونقاطه بتنشال.', 'طلّعه', () => { kick(p.pid); sheet('shPl', false); pushState(); render(); maybeCloseRound(); renderPlayersSheet(); }); };
+$('#hoB').onclick = () => { const p = pl(plTarget); if (!p) return; confirmBox(`تسلّم الريس لـ${nameOf(p)}؟`, 'رح يصير هو اللي ماسك اللعبة، وإنت بتكمّل كلاعب.', 'سلّمه', () => { clearTimeout(closeT); S.hostPid = p.pid; S.v++; wsend({ t: 'handover', code, hostKey, target: p.pid, state: lite() }); isHost = false; hostKey = null; LS.set('hk_' + code, null); sheet('shPl', false); sheet('shPlayers', false); render(); toast(`سلّمت الريس لـ${nameOf(p)}`); }); };
 
 // تعديل ملفي
 let editPhoto;
 function openEdit() {
-  const p = pl(myPid) || me; editPhoto = p.photo || null;
+  const p = pl(myPid) || me; editPhoto = photoOf(p) || me.photo || null;
   setPP($('#epp'), editPhoto, 'صورتك'); $('#enm').value = p.name || ''; $$('#egen button').forEach(b => b.classList.toggle('on', b.dataset.g === (p.g || me.g)));
   $('#eppDel').classList.toggle('hide', !editPhoto); sheet('shEdit');
 }
@@ -387,9 +444,28 @@ $$('#egen button').forEach(b => b.onclick = () => $$('#egen button').forEach(x =
 $('#eppDel').onclick = () => { editPhoto = null; setPP($('#epp'), null, 'صورتك'); $('#eppDel').classList.add('hide'); };
 $('#eSave').onclick = () => {
   const g = ($$('#egen button').find(b => b.classList.contains('on')) || {}).dataset; me.name = $('#enm').value.trim().slice(0, 16); me.photo = editPhoto; if (g && g.g) me.g = g.g;
-  sheet('shEdit', false); saveMe();
+  sheet('shEdit', false); saveMe(); sendPhoto(myPid, me.photo); applyPhotos();
   if (isHost) { addPlayer(myPid, profile()); pushState(); render(); } else act({ type: 'profile', p: profile() });
 };
+
+// ---------- قائمة اللاعبين (من أي شاشة) ----------
+$('#plB').onclick = () => { renderPlayersSheet(); sheet('shPlayers'); };
+function renderPlayersSheet() {
+  if (!S) return;
+  const r = S.phase === 'play' && S.round ? S.round : null;
+  const off = S.players.filter(p => !p.on && p.pid !== myPid);
+  $('#plsHost').innerHTML = isHost ? `<p class="mut" style="font-size:13px;margin:0 0 10px">اكبس على أي اسم لتعدّله، تطلّعه، أو تسلّمه الريس.</p>${off.length ? `<button class="btn sm red" id="kickOffB" style="margin-bottom:12px">طلّع اللي مو متصلين (${off.length})</button>` : ''}` : `<p class="mut" style="font-size:13px;margin:0 0 10px">${esc(nameOf(pl(S.hostPid)))} هو الريس.</p>`;
+  $('#plsList').innerHTML = S.players.map(p => {
+    const tags = [];
+    if (p.pid === S.hostPid) tags.push('<span class="b">الريس</span>');
+    if (p.pid === myPid) tags.push('<span class="b" style="background:var(--surface)">أنا</span>');
+    const stt = !p.on ? '📵 مو متصل' : p.ready ? '📷 جاهز' : '⌛ ما جهّز الكاميرا';
+    const rs = r ? (r.res[p.pid] ? ` · ✓ ${esc(r.res[p.pid].l)}` : r.parts.includes(p.pid) ? ' · عم يلعب' : '') : '';
+    return `<div class="rk" data-pid="${p.pid}" style="cursor:pointer">${av(p, 34)}<span class="nm">${esc(nameOf(p))} ${tags.join(' ')}<small>${stt}${rs}</small></span>${isHost && p.pid !== myPid ? '<span class="mut">⋯</span>' : ''}</div>`;
+  }).join('');
+  $$('#plsList .rk').forEach(e => e.onclick = () => { const pid = e.dataset.pid; if (pid === myPid) { sheet('shPlayers', false); openEdit(); } else if (isHost) openPl(pid); });
+  const kb = $('#kickOffB'); if (kb) kb.onclick = () => confirmBox(`تطلّع ${off.length} ${off.length > 1 ? 'لاعبين' : 'لاعب'} مو متصلين؟`, off.map(nameOf).join('، '), 'طلّعهن', () => { off.forEach(p => kick(p.pid)); pushState(); render(); maybeCloseRound(); renderPlayersSheet(); });
+}
 
 // ---------- العجلة ----------
 const WEMO = { blink: '👁️', color: '🎨', blind: '🙈', frame: '🔲', wink: '😉', smile: '😐', emoji: '😮', statue: '🗿', brows: '🤨', head: '🕹️' };
@@ -446,9 +522,10 @@ function renderWheelBody(anim) {
     }
   }
   $('#wbody').innerHTML = `<div class="card gcard"><div class="gname"><span class="gico">${gicon(r.game)}</span><div><h3>${g.name}${r.bet && r.bet.on ? '<span class="x2">×2</span>' : ''}</h3><p>${g.short}</p></div></div>
-    <p class="how">${g.how}</p>${who}${!meIn ? `<p class="whoplays">${S.settings.mode === 'relay' ? 'مو دورك هالمرة، رح تتفرّج.' : ''}</p>` : ''}</div>${bet}
+    <p class="how">${g.how}</p>${who}${!meIn && S.settings.mode === 'relay' ? `<p class="whoplays">مو دورك هالمرة، رح تتفرّج.</p>` : ''}${!T.Calib.get() && !DEMO ? `<button class="btn sm ghost" id="calNow" style="margin-top:10px">ما عايرت وجّك؟ عاير هلّق</button>` : ''}</div>${bet}
     ${isHost ? `<div class="col" style="margin-top:14px"><button class="btn big" id="startG">ابدأ 📸</button><button class="btn sm ghost" id="skipG">ما حبيناها، مرّر</button></div>` : `<p class="mut" style="text-align:center;margin-top:14px">${fem(pl(S.hostPid)) ? 'الريسة' : 'الريس'} رح ${fem(pl(S.hostPid)) ? 'تبلّش' : 'يبلّش'}… جهّز وجّك</p>`}`;
   const sa = $('#startG'); if (sa) sa.onclick = startRound;
+  const cn = $('#calNow'); if (cn) cn.onclick = openCalib;
   const sk = $('#skipG'); if (sk) sk.onclick = () => { S.round.skip = (S.round.skip || []).concat(S.round.game); spin(true); };
   const ba = $('#betAsk'); if (ba) ba.onclick = () => act({ type: 'bet', v: 'ask' });
   const bc = $('#betAcc'); if (bc) bc.onclick = () => act({ type: 'bet', v: 'acc' });
@@ -457,22 +534,41 @@ function renderWheelBody(anim) {
 }
 
 // ---------- اللعب ----------
+let curDone = false, flushT = null;
+function sendRes(rid, res) { pending[rid] = res; flushPending(); }
+// النتيجة بتنعاد لحد ما تبيّن بحالة الريس
+function flushPending() {
+  if (!S) return;
+  for (const rid in pending) {
+    const inRound = S.round && S.round.rid === rid && S.round.res && S.round.res[myPid];
+    const inHist = S.history && S.history.some(h => h.rid === rid && h.res[myPid]);
+    if (inRound || inHist) { delete pending[rid]; continue; }
+    if (!S.round || (S.round.rid !== rid && !S.history.some(h => h.rid === rid))) { delete pending[rid]; continue; }
+    act({ type: 'res', rid, s: pending[rid].s, l: pending[rid].l });
+  }
+  clearTimeout(flushT); if (Object.keys(pending).length) flushT = setTimeout(flushPending, 2000);
+}
 function stopGame() { if (gameApi) { gameApi.stop(); gameApi = null; } }
 function renderPlay() {
   const r = S.round, n = S.settings.count;
   if (cur !== 'play') show('play');
   $('#pn').textContent = r.n; $('#pt').textContent = n; $('#pmode').textContent = MODE_N[S.settings.mode]; $('#ppg').style.width = ((r.n - 1) / n * 100) + '%';
   $('#pgame').innerHTML = `<span class="gico">${gicon(r.game)}</span><div><h3>${G[r.game].name}${r.bet && r.bet.on ? '<span class="x2">×2</span>' : ''}</h3><p>${G[r.game].short}</p></div>`;
-  if (curRid !== r.rid) {
-    curRid = r.rid; stopGame(); myResult = null;
-    if (r.parts.includes(myPid)) {
+  const mine = r.res[myPid] || finished[r.rid];
+  const canPlay = r.parts.includes(myPid) || (S.settings.mode !== 'relay' && pl(myPid));
+  if (curRid !== r.rid || (mine && !curDone)) {
+    curRid = r.rid; curDone = false; stopGame(); myResult = null;
+    if (mine) { curDone = true; $('#stage').innerHTML = `<div class="card watch" style="margin-top:12px"><div class="scene" style="width:110px;height:110px;margin:0 auto">${LENS}</div><h3 style="margin-top:10px">${esc(mine.l)}</h3><p class="mut" style="margin:4px 0 0">خلّصت ✓ عم نستنى الباقي…</p></div>`; if (!r.res[myPid]) sendRes(r.rid, mine); }
+    else if (canPlay) {
       const meP = pl(myPid);
       const local = r.startAt - offset;
+      if (!r.parts.includes(myPid) || Date.now() > local - 1500) act({ type: 'late', rid: r.rid });
       gameApi = T.play({ id: r.game, seed: r.seed, startAt: local, g: meP ? meP.g : me.g, stage: $('#stage'), sim: simMode || (DEMO && !T.Cam.stream && !camReady),
         onDone(s, l, snap) {
-          myResult = { s, l };
+          myResult = { s, l }; curDone = true;
           if (snap) { album = album.filter(a => a.n !== r.n); album.push({ n: r.n, game: r.game, l, img: snap }); lastShot = { rid: r.rid, img: snap, l }; }
-          act({ type: 'res', rid: r.rid, s, l });
+          finished[r.rid] = { s, l }; const ks = Object.keys(finished); if (ks.length > 20) delete finished[ks[0]]; LS.set('fin', finished);
+          sendRes(r.rid, { s, l });
         } });
     } else {
       const ps = r.parts.map(pl).filter(Boolean);
@@ -480,16 +576,17 @@ function renderPlay() {
     }
   }
   // حالة اللاعبين
-  $('#pplist').innerHTML = r.parts.map(pid => { const p = pl(pid); if (!p) return ''; const d = r.res[pid]; return `<span class="pl ${d ? 'done' : ''} ${p.on ? '' : 'off'}">${av(p, 24)}${esc(nameOf(p))} ${d ? '✓' : '⏳'}</span>`; }).join('');
+  $('#pplist').innerHTML = r.parts.map(pid => { const p = pl(pid); if (!p) return ''; const d = r.res[pid]; return `<span class="pl ${d ? 'done' : ''} ${p.on ? '' : 'off'}" data-pid="${pid}">${av(p, 24)}${esc(nameOf(p))} ${d ? '✓' : p.on ? '⏳' : '📵'}</span>`; }).join('');
+  $$('#pplist .pl').forEach(e => e.onclick = () => { if (isHost && e.dataset.pid !== myPid) openPl(e.dataset.pid); });
   $('#pboss').classList.toggle('hide', !isHost);
 }
 $('#replayB').onclick = () => confirmBox('نعيد اللعبة؟', 'رح تبلّش من أول وجديد عند الكل.', 'عيدها', replay);
-$('#closeB').onclick = () => confirmBox('نسكّر الجولة هلّق؟', 'اللي ما خلّص رح تنحسبلو صفر.', 'سكّر', closeRound);
+$('#closeB').onclick = () => confirmBox('نسكّر الجولة هلّق؟', 'اللي ما خلّص بتنحسبلو نتيجته لهاللحظة.', 'سكّر', closeRound);
 
 // ---------- نتيجة اللعبة ----------
 function entName(e) { return e.team != null ? S.teams[e.team].name : nameOf(pl(e.key)); }
 function renderResults() {
-  show('res'); stopGame();
+  show('res'); if (gameApi) { gameApi.finishNow ? gameApi.finishNow() : gameApi.stop(); gameApi = null; }
   const h = S.history[S.history.length - 1]; if (!h) return;
   const g = G[h.game];
   const top = h.ent[0];
@@ -503,7 +600,7 @@ function renderResults() {
       return `<div class="rk ${mine ? 'me' : ''}"><span class="p">${e.rank}</span><span class="tdot" style="background:${S.teams[e.team].color}"></span><span class="nm">${esc(S.teams[e.team].name)}<small>${sub}</small></span><span class="v n">${e.s}</span><span class="pt ${e.pts ? '' : 'z'}">${e.pts ? '+' + e.pts : 0}</span></div>`;
     }
     const p = pl(e.key);
-    return `<div class="rk ${mine ? 'me' : ''}"><span class="p">${e.rank}</span>${av(p, 30)}<span class="nm">${esc(nameOf(p))}<small>${esc(e.l)}</small></span><span class="pt ${e.pts ? '' : 'z'}">${e.pts ? '+' + e.pts : 0}</span></div>`;
+    return `<div class="rk ${mine ? 'me' : ''}"><span class="p">${e.has ? e.rank : '–'}</span>${av(p, 30)}<span class="nm">${esc(nameOf(p))}<small>${e.has ? esc(e.l) : (p && !p.on ? 'مو متصل 📵' : 'لسّا ما وصلت نتيجته')}</small></span><span class="pt ${e.pts ? '' : 'z'}">${e.pts ? '+' + e.pts : 0}</span></div>`;
   }).join('');
   // المجموع
   const tot = totalsSorted();
@@ -515,7 +612,7 @@ function renderResults() {
 }
 function totalsSorted() {
   let arr;
-  if (S.settings.mode === 'solo') arr = S.players.filter(p => S.totals[p.pid] != null || p.on).map(p => ({ key: p.pid, name: nameOf(p), pts: S.totals[p.pid] || 0, p }));
+  if (S.settings.mode === 'solo') arr = S.players.map(p => ({ key: p.pid, name: nameOf(p), pts: S.totals[p.pid] || 0, p }));
   else arr = S.teams.map((t, i) => ({ key: 't' + i, team: i, name: t.name, pts: S.totals['t' + i] || 0 })).filter(e => members(e.team).length || e.pts);
   arr.sort((a, b) => b.pts - a.pts);
   arr.forEach(e => (e.rank = 1 + arr.filter(x => x.pts > e.pts).length));
@@ -630,9 +727,17 @@ $('#instB').onclick = () => { if (bip) { bip.prompt(); bip = null; $('#instB').c
 if ('serviceWorker' in navigator && !DEMO) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- الرسم الرئيسي ----------
+function refreshLight() { if (cur === 'calib') return; render(); }
 function render() {
   if (!S) return;
   $('#hcode').textContent = DEMO ? '' : code || '';
+  $('#plB').classList.remove('hide');
+  if ($('#shPlayers').classList.contains('on')) renderPlayersSheet();
+  // المعايرة شغالة: منكمّلها إلا إذا بلّشت لعبة إلي
+  if (calApi && cur === 'calib') {
+    if (S.phase === 'play' && S.round && (S.round.parts.includes(myPid) || S.settings.mode !== 'relay')) { calApi.stop(); calApi = null; toast('بلّشت اللعبة! كمّل المعايرة بعدين'); }
+    else return;
+  }
   if (!pl(myPid) && !isHost && S.phase !== 'lobby' && joinedOnce) { /* لاعب جديد وصل بنص اللعب */ }
   switch (S.phase) {
     case 'lobby': stopGame(); curRid = null; renderLobby(); break;
@@ -707,7 +812,7 @@ $('#cropOk').onclick = () => {
   $('#crop').classList.remove('on');
   if (crop.target === 'me') { me.photo = url; setPP($('#pp'), url); }
   else if (crop.target === 'edit') { editPhoto = url; setPP($('#epp'), url); $('#eppDel').classList.remove('hide'); }
-  else if (crop.target === 'group') { S.group.photo = url; setPP($('#gp'), url); pushState(); }
+  else if (crop.target === 'group') { sendPhoto('group', url); applyPhotos(); setPP($('#gp'), url); }
 };
 
 // ---------- كونفيتي ----------
@@ -725,6 +830,7 @@ function startDemo() {
   isHost = true; code = 'DEMO1'; joinedOnce = true;
   S = newState(); addPlayer(myPid, profile());
   BOTS.forEach(([n, g], i) => { const p = addPlayer('bot' + i, { name: n, g }); p.ready = true; p.bot = true; });
+  if (me.photo) PH[myPid] = me.photo; applyPhotos();
   render();
 }
 function botsPlay() {
@@ -751,5 +857,5 @@ if (!DEMO && urlCode.length === 5) {
   setTimeout(() => { if (!S && cur === 'wait') { LS.set('sess', null); joinedOnce = false; show('cover'); } }, 8000);
 } else if (!DEMO) connect();
 
-window.__tsw = { get S() { return S; }, act, render };
+window.__tsw = { get S() { return S; }, act, render, get isHost() { return isHost; }, pending };
 })();

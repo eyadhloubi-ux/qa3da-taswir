@@ -159,7 +159,7 @@ wss.on('connection', ws => {
       case 'create': {
         const code = newCode();
         const hostKey = crypto.randomBytes(12).toString('hex');
-        const r = { code, hostKey, hostPid: m.pid, hostSock: ws, socks: new Map([[m.pid, ws]]), banned: new Set(), state: null, hostGoneAt: 0, claimOpen: false, counted: new Set([m.pid]) };
+        const r = { code, hostKey, hostPid: m.pid, hostSock: ws, socks: new Map([[m.pid, ws]]), banned: new Set(), state: null, hostGoneAt: 0, claimOpen: false, counted: new Set([m.pid]), photos: {} };
         rooms.set(code, r);
         ws.pid = m.pid; ws.code = code;
         bump('rooms'); bump('players');
@@ -177,11 +177,12 @@ wss.on('connection', ws => {
         if (m.hostKey && m.hostKey === room.hostKey) {
           room.hostSock = ws; room.hostPid = m.pid; room.hostGoneAt = 0; room.claimOpen = false;
           broadcast(room, { t: 'hostBack' }, m.pid);
-          return send(ws, { t: 'joined', code: room.code, host: true, hostKey: room.hostKey, state: room.state, now: Date.now() });
+          return send(ws, { t: 'joined', code: room.code, host: true, hostKey: room.hostKey, state: room.state, photos: room.photos, now: Date.now() });
         }
         if (!room.counted.has(m.pid)) { room.counted.add(m.pid); bump('players'); }
-        send(ws, { t: 'joined', code: room.code, host: false, state: room.state, now: Date.now(), hostGone: room.claimOpen });
+        send(ws, { t: 'joined', code: room.code, host: false, state: room.state, photos: room.photos, now: Date.now(), hostGone: room.claimOpen });
         send(room.hostSock, { t: 'joinReq', pid: m.pid, profile: m.profile || null });
+        send(room.hostSock, { t: 'presence', pid: m.pid, on: true });
         return;
       }
 
@@ -206,7 +207,7 @@ wss.on('connection', ws => {
 
       case 'kick': {
         if (!room || m.hostKey !== room.hostKey) return;
-        room.banned.add(m.target);
+        room.banned.add(m.target); delete room.photos[m.target];
         const s = room.socks.get(m.target);
         send(s, { t: 'kicked' });
         room.socks.delete(m.target);
@@ -234,6 +235,16 @@ wss.on('connection', ws => {
         return;
       }
 
+      case 'photo': { // الصور برا الحالة: بتنحفظ مرة وبتنبعت للكل
+        if (!room || room.banned.has(ws.pid) || ws.code !== room.code) return;
+        const key = m.key === 'group' ? 'group' : ws.pid;
+        if (key === 'group' && ws !== room.hostSock) return;
+        const data = typeof m.data === 'string' && m.data.startsWith('data:image/') && m.data.length < 400000 ? m.data : null;
+        if (data) room.photos[key] = data; else delete room.photos[key];
+        broadcast(room, { t: 'photo', key, data }, ws.pid);
+        return;
+      }
+
       case 'leave': {
         if (!room) return;
         room.socks.delete(m.pid);
@@ -247,7 +258,8 @@ wss.on('connection', ws => {
     const room = ws.code && rooms.get(ws.code);
     if (!room) return;
     if (room.hostSock === ws) hostCheck(room);
-    else send(room.hostSock, { t: 'presence', pid: ws.pid, on: false });
+    // بس إذا هاد آخر اتصال لهالشخص (مو اتصال قديم انسكّر بعد ما رجع)
+    if (room.socks.get(ws.pid) === ws) { room.socks.delete(ws.pid); if (room.hostSock !== ws) send(room.hostSock, { t: 'presence', pid: ws.pid, on: false }); }
   });
 });
 

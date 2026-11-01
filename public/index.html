@@ -106,6 +106,7 @@ h1,h2,h3{font-family:var(--fd);font-weight:700;margin:0;line-height:1.35}
 .pl.off{opacity:.45}
 .pl .b{font-size:11px;background:var(--acc);color:var(--on);border:1.5px solid var(--press);border-radius:6px;padding:0 5px}
 .pl .rd{font-size:12px}
+.rk .b{font-size:11px;background:var(--acc);color:var(--on);border:1.5px solid var(--press);border-radius:6px;padding:0 5px;font-weight:500}
 .pl.out{opacity:.35;text-decoration:line-through}
 .pl.done{border-color:var(--green)}
 .teams{display:grid;gap:10px}
@@ -301,7 +302,7 @@ details.qd summary::-webkit-details-marker{display:none}
 <header class="hdr">
   <button class="hb" id="helpB" aria-label="التعليمات"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>التعليمات</button>
   <span class="hcode" id="hcode"></span>
-  <button class="ib" id="themeB" aria-label="الوضع الفاتح أو الداكن"></button>
+  <div style="display:flex;gap:8px"><button class="ib hide" id="plB" aria-label="اللاعبين"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.9.3 5 2.6 5 5.8"/></svg></button><button class="ib" id="themeB" aria-label="الوضع الفاتح أو الداكن"></button></div>
 </header>
 
 <!-- الغلاف -->
@@ -351,13 +352,16 @@ details.qd summary::-webkit-details-marker{display:none}
   <div class="card camprep" style="margin-top:14px" id="camPrep">
     <div class="mini"><video id="prepV" autoplay muted playsinline class="mirror" style="transform:scaleX(-1)"></video></div>
     <div style="flex:1"><b id="prepT">جهّز الكاميرا</b><p id="prepP">لازم تسمح للكاميرا قبل ما نبلّش، والكشف كله على موبايلك.</p>
-      <button class="btn sm" id="prepB" style="margin-top:8px">جهّز الكاميرا</button></div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap"><button class="btn sm" id="prepB">جهّز الكاميرا</button><button class="btn sm ghost hide" id="recalB" style="flex:none;width:auto">عيد المعايرة</button></div></div>
   </div>
   <div id="lobbyPlayers"></div>
   <div id="setBox"></div>
   <div style="margin-top:20px" id="startBox"></div>
   <div class="sig">إعداد م. إياد حلوبي</div>
 </section>
+
+<!-- المعايرة -->
+<section class="screen" id="s-calib"><div id="calibBody"></div></section>
 
 <!-- العجلة -->
 <section class="screen" id="s-wheel">
@@ -440,7 +444,8 @@ details.qd summary::-webkit-details-marker{display:none}
   <h3>كيف منلعب «قعدة تصوير»؟</h3>
   <ol>
     <li>الريس بيفتح القعدة، والباقي بيمسحوا الـQR أو بيكتبوا الكود من موبايلاتهم.</li>
-    <li>كل واحد بيجهّز كاميرته الأمامية ويسمحلها، وبيحط الموبايل قدّام وجّه.</li>
+    <li>كل واحد بيعاير وجّه أول مرة (نص دقيقة): بيحرّك راسه بكل الاتجاهات، بيرفع حواجبه، بيضحك، بيفتح تمّه، وبيغمّز بكل عين. المعايرة بتنحفظ عموبايله.</li>
+    <li>خلّي الموبايل قدّام وجّك بإضاءة منيحة، ووجّك كله بالكادر.</li>
     <li>عجلة الحظ بتختار اللعبة، والكل بيبلّش سوا بنفس اللحظة بعد العدّ 3، 2، 1.</li>
     <li>الكاميرا هي الحَكَم: بتشوف الرمشة والضحكة والغمزة وحركة الراس، وبتحسب النتيجة لحالها.</li>
     <li>بكل لعبة: الأول 3 نقاط، التاني 2، التالت 1. وبالآخر بينجمع كلشي.</li>
@@ -458,7 +463,8 @@ details.qd summary::-webkit-details-marker{display:none}
     <li>بيختار الوضع وعدد الألعاب، وبيوزّع الفرق ويختار القادة.</li>
     <li>«مرّر» إذا ما عجبتكن اللعبة، والعجلة بتدور من جديد.</li>
     <li>«عيد اللعبة» إذا ما فهموها، والنتيجة بتنلغى.</li>
-    <li>بيعدّل الأسماء، بيطلّع حدا، أو بيسلّم الريس لغيره (اكبس على اسم اللاعب).</li>
+    <li>من زر 👥 فوق، وبأي وقت: بيعدّل الأسماء، بيطلّع حدا (أو كل اللي مو متصلين دفعة وحدة)، أو بيسلّم الريس لغيره.</li>
+    <li>إذا حدا انقطع ورجع، بيرجع عنفس الجولة، ونتيجته بتنحسب حتى لو وصلت متأخرة.</li>
     <li>إذا الريس غاب أكتر من 45 ثانية، أي حدا بيقدر يستلم مكانه.</li>
   </ol>
   <div class="by">مبنية على تقنية كشف ملامح الوجه (Face Landmarks) اللي بتشتغل على الموبايل نفسه، وما في ولا لقطة من الكاميرا أثناء اللعب بتطلع لبرا موبايلك.<br><br>اللعبة من إعداد <b>م. إياد حلوبي</b><br><span dir="ltr">@eyad.hloubi</span> · صار بدها قعدة.</div>
@@ -477,6 +483,15 @@ details.qd summary::-webkit-details-marker{display:none}
     <button class="btn red" id="kkB">طلّعه من القعدة</button>
     <button class="btn flat sm" data-close>رجوع</button>
   </div>
+</div></div>
+
+<!-- اللاعبين -->
+<div class="sheet" id="shPlayers"><div class="in">
+  <div class="grab"></div>
+  <h3>اللاعبين</h3>
+  <div id="plsHost"></div>
+  <div class="card" style="padding-block:4px" id="plsList"></div>
+  <div class="col" style="margin-top:14px"><button class="btn flat sm" data-close>سكّر</button></div>
 </div></div>
 
 <!-- تعديل ملفي -->
