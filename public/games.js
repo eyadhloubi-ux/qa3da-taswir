@@ -19,6 +19,10 @@ const MODEL_URLS = [new URL('model/face_landmarker.task', BASE).href, 'https://s
 
 const Cam = {
   stream: null, facing: null, landmarker: null, loading: null, delegate: null, vision: null, fileset: null, buf: null,
+  // طرق الكشف بالترتيب. بعض الموبايلات (مثلاً سامسونج بمعالج Exynos) الكشف عالـGPU أو من الفيديو مباشرة
+  // ما بيشوف وجوه بلا ما يعطي خطأ، فمنجرّب الطريقة الجاية لحالنا ومنحفظ اللي اشتغلت.
+  MODES: [['GPU', 'video'], ['GPU', 'canvas'], ['CPU', 'canvas'], ['CPU', 'data']],
+  mi: 0, src: 'video', modeAt: 0, modeHits: 0, exhausted: false, saved: false,
   async ensureModel() {
     if (this.landmarker) return this.landmarker;
     if (this.loading) return this.loading;
@@ -29,22 +33,57 @@ const Cam = {
         for (const u of MODEL_URLS) { try { const r = await fetch(u); if (r.ok) { this.buf = new Uint8Array(await r.arrayBuffer()); break; } } catch (_) {} }
       }
       if (!this.buf) throw new Error('nomodel');
-      const pref = LSget('delegate', 'GPU');
-      try { await this.build(pref); } catch (e) { await this.build(pref === 'GPU' ? 'CPU' : 'GPU'); }
+      const sv = LSget('cammode', null);
+      this.saved = sv != null; this.mi = sv != null ? clamp(sv | 0, 0, this.MODES.length - 1) : 0;
+      for (let k = 0; k < this.MODES.length; k++) {
+        try { await this.build(this.mi); break; } catch (e) { this.mi = Math.min(this.MODES.length - 1, this.mi + 1); }
+      }
+      if (!this.landmarker) throw new Error('nolandmarker');
       return this.landmarker;
     })();
     try { return await this.loading; } catch (e) { this.loading = null; throw e; }
   },
-  async build(d) {
+  async build(mi) {
+    const [d, src] = this.MODES[mi];
     const lm = await this.vision.FaceLandmarker.createFromOptions(this.fileset, {
       baseOptions: { modelAssetBuffer: this.buf, delegate: d }, runningMode: 'VIDEO', numFaces: 1,
       outputFaceBlendshapes: true, minFaceDetectionConfidence: .4, minFacePresenceConfidence: .4, minTrackingConfidence: .4
     });
-    if (this.landmarker) try { this.landmarker.close(); } catch (_) {}
-    this.landmarker = lm; this.delegate = d; this.errs = 0; this.misses = 0; this.hits = 0;
+    const old = this.landmarker;
+    this.landmarker = lm; this.delegate = d; this.src = src; this.mi = mi;
+    this.errs = 0; this.misses = 0; this.hits = 0; this.modeHits = 0; this.modeAt = performance.now(); this.vt = -1; this.frames = 0;
+    if (old) setTimeout(() => { try { old.close(); } catch (_) {} }, 200);
+    if (this.onMode) this.onMode(this.modeName());
   },
-  // إذا الـGPU ما عم يشوف وجوه أو عم يغلط، منحوّل للـCPU ومنحفظ هالخيار للجهاز
-  async toCPU() { if (this.delegate === 'CPU' || this.switching) return; this.switching = true; try { await this.build('CPU'); LSset('delegate', 'CPU'); } catch (_) {} this.switching = false; },
+  modeName() { const [d, s] = this.MODES[this.mi]; return `${d === 'GPU' ? 'كرت الشاشة' : 'المعالج'} · ${s === 'video' ? 'فيديو' : s === 'canvas' ? 'لوحة' : 'بكسلات'}`; },
+  // الطريقة الجاية (تلقائي أو من زر «الكاميرا ما عم تشوفني؟»)
+  async nextMode(manual) {
+    if (this.switching || !this.vision) return false;
+    let n = this.mi + 1;
+    if (n >= this.MODES.length) { if (!manual) { this.exhausted = true; return false; } n = 0; }
+    this.switching = true;
+    try { await this.build(n); } catch (_) { this.mi = n; this.switching = false; return this.nextMode(manual); }
+    this.switching = false; this.saved = false;
+    return true;
+  },
+  async toCPU() { if (this.delegate !== 'CPU') { this.switching = false; while (this.delegate !== 'CPU' && this.mi < this.MODES.length - 1) if (!(await this.nextMode())) break; } },
+  frameSrc(video) {
+    if (this.src === 'video') return video;
+    const W = video.videoWidth, H = video.videoHeight, k = Math.min(1, 640 / Math.max(W, H));
+    const w = Math.round(W * k), h = Math.round(H * k);
+    if (!this.cv) { this.cv = document.createElement('canvas'); this.cx = this.cv.getContext('2d', { willReadFrequently: true }); }
+    if (this.cv.width !== w || this.cv.height !== h) { this.cv.width = w; this.cv.height = h; }
+    this.cx.drawImage(video, 0, 0, w, h);
+    return this.src === 'canvas' ? this.cv : this.cx.getImageData(0, 0, w, h);
+  },
+  // إذا الصورة عم تتحرك وما شفنا ولا وجه بهالطريقة من فترة، منجرّب اللي بعدها
+  watchdog(video, now) {
+    if (this.switching || this.exhausted) return;
+    if (video.currentTime !== this.vt) { this.vt = video.currentTime; this.frames++; }
+    if (this.modeHits > 0 || this.frames < 15) return;
+    const wait = this.saved ? 6000 : 2500;
+    if (now - this.modeAt > wait) this.nextMode();
+  },
   live() { const t = this.stream && this.stream.getVideoTracks()[0]; return !!(t && t.readyState === 'live' && t.enabled && !t.muted); },
   async open(facing) {
     facing = facing || 'user';
@@ -69,16 +108,19 @@ const Cam = {
   },
   lastT: 0, lastRes: null, lastAt: 0,
   detect(video) {
-    if (!this.landmarker || !video || video.readyState < 2 || !video.videoWidth) return null;
+    if (!this.landmarker || this.switching || !video || video.readyState < 2 || !video.videoWidth) return null;
     const now = performance.now();
     if (now - this.lastAt < 28 && this.lastVideo === video) return this.lastRes;
     this.lastAt = now; this.lastVideo = video;
     let t = now; if (t <= this.lastT) t = this.lastT + 1; this.lastT = t;
     let res;
-    try { res = this.landmarker.detectForVideo(video, t); this.errs = 0; }
-    catch (e) { if (++this.errs > 20) this.toCPU(); return (this.lastRes = null); }
+    try { res = this.landmarker.detectForVideo(this.frameSrc(video), t); this.errs = 0; }
+    catch (e) { if (++this.errs > 15) this.nextMode(); return (this.lastRes = null); }
+    this.watchdog(video, now);
+    if (this.failModes && this.failModes.includes(this.mi)) res = null; // للفحص فقط
     if (!res || !res.faceLandmarks || !res.faceLandmarks.length) { this.misses++; return (this.lastRes = null); }
-    this.hits++;
+    this.hits++; this.modeHits++;
+    if (this.modeHits === 12 && !this.saved) { LSset('cammode', this.mi); this.saved = true; this.exhausted = false; }
     const bs = {};
     if (res.faceBlendshapes && res.faceBlendshapes[0]) res.faceBlendshapes[0].categories.forEach(c => (bs[c.categoryName] = c.score));
     const lm = res.faceLandmarks[0];
@@ -176,11 +218,13 @@ function calibrate(root, done) {
       <i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i>
       <span class="live"><i></i><b>معايرة</b></span><span class="status" id="cbSt"></span></div>
     <div class="row" style="margin-top:12px"><button class="btn sm ghost" id="cbBack">رجوع</button><button class="btn sm ghost hide" id="cbSkip">تخطّى هالخطوة</button></div>
+    <button class="btn sm hide" id="cbFix" style="margin-top:10px">الكاميرا ما عم تشوفني؟ جرّب طريقة تانية</button>
+    <p class="mut n" id="cbDiag" style="font-size:11px;text-align:center;margin:8px 0 0"></p>
     <p class="mut" style="font-size:12px;text-align:center;margin:10px 0 0">المعايرة بتخلّي الكاميرا تعرف وجّك أنت. بتنحفظ عموبايلك وما في شي بيطلع لبرا.</p>`;
   const $ = s => root.querySelector(s);
   const video = $('#cbV'), cv = $('#cbC'), ctx = cv.getContext('2d');
   const C = JSON.parse(JSON.stringify(DEF)); C.n.bs = {};
-  let i = 0, stepAt = 0, holdAt = 0, recUntil = 0, raf = 0, stopped = false, lastFace = 0, gpuTried = false, rec = null;
+  let i = 0, stepAt = 0, holdAt = 0, recUntil = 0, raf = 0, stopped = false, lastFace = 0, rec = null;
   const nsum = {}; let nCount = 0, nose = { x: 0, y: 0 }, roll = 0, wsum = 0;
   const st = (t, k) => { const e = $('#cbSt'); e.textContent = t; e.className = 'status ' + (k || ''); };
   function size() { const b = $('#cbCam').getBoundingClientRect(); const d = Math.min(2, devicePixelRatio || 1); cv.width = b.width * d; cv.height = b.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); cv.cw = b.width; cv.ch = b.height; }
@@ -198,7 +242,7 @@ function calibrate(root, done) {
     if (i >= STEPS.length) { stop(); finalize(); return; }
     show();
   }
-  function stop() { stopped = true; cancelAnimationFrame(raf); window.removeEventListener('resize', size); }
+  function stop() { stopped = true; cancelAnimationFrame(raf); window.removeEventListener('resize', size); Cam.onMode = null; }
   function finalize() {
     // حدود حركة الأنف لازم تكون معقولة
     C.ex.x0 = Math.min(C.ex.x0, C.n.nose.x - .06); C.ex.x1 = Math.max(C.ex.x1, C.n.nose.x + .06);
@@ -210,6 +254,9 @@ function calibrate(root, done) {
   }
   $('#cbBack').onclick = () => { stop(); done(false); };
   $('#cbSkip').onclick = () => next();
+  const diag = () => { const v = video; $('#cbDiag').textContent = `${Cam.modeName()} · ${v.videoWidth}×${v.videoHeight}${Cam.exhausted ? ' · جرّبنا كل الطرق' : ''}`; };
+  Cam.onMode = () => { diag(); lastFace = performance.now(); st('عم نجرّب طريقة تانية…', ''); };
+  $('#cbFix').onclick = async () => { $('#cbFix').classList.add('hide'); Cam.exhausted = false; await Cam.nextMode(true); diag(); };
   function loop() {
     if (stopped) return;
     raf = requestAnimationFrame(loop);
@@ -218,11 +265,12 @@ function calibrate(root, done) {
     const f = Cam.detect(video);
     if (now - stepAt > 6000 && s.k !== 'neutral') $('#cbSkip').classList.remove('hide');
     if (!f) {
-      st(now - lastFace > 1500 ? 'ما عم شوفك… قرّب وجّك وخلّي في ضو قدّامك' : 'قرّب وجّك', 'warn');
-      if (!gpuTried && Cam.delegate === 'GPU' && now - stepAt > 4000 && Cam.hits < 5) { gpuTried = true; Cam.toCPU(); }
+      st(Cam.exhausted ? 'جرّبنا كل الطرق وما عم نشوفك 😕 اكبس الزر تحت لنعيد' : now - lastFace > 1500 ? 'ما عم شوفك… قرّب وجّك وخلّي في ضو قدّامك' : 'قرّب وجّك', Cam.exhausted ? 'bad' : 'warn');
+      if (now - lastFace > 3500) $('#cbFix').classList.remove('hide');
       holdAt = 0; return;
     }
-    lastFace = now;
+    lastFace = now; $('#cbFix').classList.add('hide');
+    if (!(i % 3) && !diag.d) { diag(); diag.d = 1; }
     // إطار حول الوجه
     const [bx0, by0] = v2c(f.box.x, f.box.y), [bx1, by1] = v2c(f.box.x + f.box.w, f.box.y + f.box.h);
     ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0); ctx.setLineDash([]);
@@ -312,7 +360,7 @@ function calibrate(root, done) {
     catch (e) { st('ما قدرنا نفتح الكاميرا — اسمح للكاميرا من إعدادات المتصفح', 'bad'); return; }
     st('عم نحمّل كاشف الوجه…', '');
     try { await Cam.ensureModel(); } catch (e) { st('ما قدرنا نحمّل كاشف الوجه، تأكد من النت وجرّب', 'bad'); return; }
-    show(); lastFace = performance.now(); loop();
+    show(); lastFace = performance.now(); diag(); loop();
   })();
   return { stop };
 }
