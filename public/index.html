@@ -90,6 +90,14 @@ h1,h2,h3{font-family:var(--fd);font-weight:700;margin:0;line-height:1.35}
 /* الدخول */
 .ppick{width:126px;height:126px;margin:6px auto 0;border:2px dashed var(--press);border-radius:30%;display:grid;place-items:center;cursor:pointer;overflow:hidden;background:var(--surface);text-align:center;font-size:14px;color:var(--ink2);line-height:1.5}
 .ppick img{width:100%;height:100%;object-fit:cover}
+.hdr.inroom #helpB span{display:none}.hdr.inroom #helpB{padding:0 10px}
+#newB{padding:0 10px;font-size:13px;white-space:nowrap}
+.grp{display:flex;align-items:center;gap:12px;padding:10px;border:2px solid var(--press);border-radius:16px;background:var(--surface);box-shadow:3px 3px 0 var(--press);cursor:pointer;text-align:start;width:100%;font:inherit;color:inherit}
+.grp .gim{width:96px;aspect-ratio:4/3;border-radius:10px;border:2px solid var(--press);overflow:hidden;flex:none;display:grid;place-items:center;background:var(--bg);font-size:28px}
+.grp .gim img{width:100%;height:100%;object-fit:cover}
+.grp b{display:block;font-family:var(--fd);font-size:19px}.grp small{color:var(--ink2);font-size:13px}
+.grp.empty{border-style:dashed;box-shadow:none}
+.grp.big{flex-direction:column;text-align:center}.grp.big .gim{width:100%;font-size:44px}
 .gpick{width:100%;height:auto;aspect-ratio:4/3;border-radius:12px;max-height:240px}
 .picks{display:flex;gap:8px;justify-content:center;margin-top:10px}
 .picks .btn{width:auto;flex:none;padding:0 14px}
@@ -190,6 +198,11 @@ h1,h2,h3{font-family:var(--fd);font-weight:700;margin:0;line-height:1.35}
 @keyframes gfx{0%{opacity:0;transform:scale(.7)}12%{opacity:1;transform:scale(1)}85%{opacity:1}100%{opacity:0}}
 .gfx .pop{font-size:64px;filter:drop-shadow(0 4px 0 rgba(0,0,0,.3))}
 .gfx .pop.sm{font-size:30px;font-weight:700;color:#fff;background:rgba(0,0,0,.45);padding:4px 14px;border-radius:12px;font-family:var(--fd)}
+.gfx .pop.huge{font-size:150px}
+.cam.shake{animation:shake .5s}
+@keyframes shake{10%,50%,90%{transform:translate(-9px,4px) rotate(-1.5deg)}30%,70%{transform:translate(9px,-4px) rotate(1.5deg)}}
+.crawl{position:absolute;right:-50px;font-size:46px;z-index:6;pointer-events:none;animation:crawl 1.8s linear forwards}
+@keyframes crawl{to{right:110%;transform:rotate(-15deg)}}
 .gfx .joke{align-self:start;margin:44px 14px 0;background:var(--surface);color:var(--ink);border:2px solid var(--press);border-radius:12px;padding:10px 12px;font-size:15px;font-weight:500;box-shadow:3px 3px 0 var(--press);text-align:center}
 .gfx .joke span{display:block;font-size:30px}
 .ghud{min-height:10px}
@@ -317,9 +330,9 @@ details.qd summary::-webkit-details-marker{display:none}
 <canvas id="cf"></canvas>
 <div class="app">
 <header class="hdr">
-  <button class="hb" id="helpB" aria-label="التعليمات"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>التعليمات</button>
+  <button class="hb" id="helpB" aria-label="التعليمات"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg><span>التعليمات</span></button>
   <span class="hcode" id="hcode"></span>
-  <div style="display:flex;gap:8px"><button class="ib hide" id="plB" aria-label="اللاعبين"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.9.3 5 2.6 5 5.8"/></svg></button><button class="ib" id="themeB" aria-label="الوضع الفاتح أو الداكن"></button></div>
+  <div style="display:flex;gap:8px"><button class="hb hide" id="newB" aria-label="قعدة جديدة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>قعدة جديدة</button><button class="ib hide" id="plB" aria-label="اللاعبين"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.9.3 5 2.6 5 5.8"/></svg></button><button class="ib" id="themeB" aria-label="الوضع الفاتح أو الداكن"></button></div>
 </header>
 
 <!-- الغلاف -->
@@ -371,6 +384,7 @@ details.qd summary::-webkit-details-marker{display:none}
     <div style="flex:1"><b id="prepT">جهّز الكاميرا</b><p id="prepP">لازم تسمح للكاميرا قبل ما نبلّش، والكشف كله على موبايلك.</p>
       <div class="row" style="margin-top:8px;flex-wrap:wrap"><button class="btn sm" id="prepB">جهّز الكاميرا</button><button class="btn sm ghost hide" id="recalB" style="flex:none;width:auto">عيد المعايرة</button></div></div>
   </div>
+  <div id="grpBox" style="margin-top:14px"></div>
   <div id="lobbyPlayers"></div>
   <div id="setBox"></div>
   <div style="margin-top:20px" id="startBox"></div>
@@ -413,15 +427,8 @@ details.qd summary::-webkit-details-marker{display:none}
 <!-- قبل الكشف -->
 <section class="screen" id="s-wrap">
   <div class="top"><span style="width:40px"></span><h2>خلصت الألعاب</h2><span style="width:40px"></span></div>
-  <p class="mut" style="margin:0;text-align:center">قبل الكشف، عرّفوا القعدة. كله اختياري.</p>
-  <span class="label">نوع القعدة</span>
-  <div class="chips" id="gt"></div>
-  <div class="row hide" id="gtIn" style="margin-top:8px"><input class="field" id="gtc" maxlength="16" placeholder="اكتب نوع القعدة"><button class="btn sm" id="gtcB" style="flex:none;width:auto">تمام</button></div>
-  <span class="label">اسمها</span>
-  <input class="field" id="gn" maxlength="22" placeholder="مثلاً: سهرة الخميس">
-  <span class="label">صورة جماعية</span>
-  <label class="ppick gpick" id="gp">خدوا سيلفي سوا<br>أو اختاروا صورة</label>
-  <div class="picks"><button class="btn sm ghost" data-pick="group">من الصور</button><button class="btn sm ghost" data-selfie="group">سيلفي جماعي (مؤقت)</button></div>
+  <p class="mut" style="margin:0 0 10px;text-align:center">جاهزين؟ هيدي قعدتكن:</p>
+  <div id="wrapGrp"></div>
   <div class="col" style="margin-top:22px">
     <button class="btn red" id="partyB">حفلة الكشف</button>
     <button class="btn ghost" id="allB">اكشف دفعة وحدة</button>
@@ -448,7 +455,7 @@ details.qd summary::-webkit-details-marker{display:none}
   <div class="install" id="install"><b>خلّي اللعبة عموبايلك</b><span>أندرويد: قائمة المتصفح ⋮ ← «إضافة إلى الشاشة الرئيسية».<br>آيفون: من Safari زر المشاركة ← «إضافة إلى الشاشة الرئيسية».</span>
     <button class="btn sm hide" id="instB" style="margin-top:10px">نزّلها كتطبيق</button></div>
   <div class="col hide" style="margin-top:16px" id="hostEnd">
-    <button class="btn flat sm" id="editG">عدّل نوع القعدة أو اسمها أو صورتها</button>
+    <button class="btn flat sm" id="editG">عدّل اسم الشلة أو صورتها</button>
     <button class="btn flat sm" id="againB">دورة جديدة بنفس القعدة</button>
   </div>
   <div class="endsig">@eyad.hloubi · صار بدها قعدة.</div>
@@ -461,6 +468,8 @@ details.qd summary::-webkit-details-marker{display:none}
   <h3>كيف منلعب «قعدة تصوير»؟</h3>
   <ol>
     <li>الريس بيفتح القعدة، والباقي بيمسحوا الـQR أو بيكتبوا الكود من موبايلاتهم.</li>
+    <li>الريس بيحط اسم العيلة أو الشلة وبياخد صورة جماعية، وبتطلع بالكشف وبصور الستوري.</li>
+    <li>زر «قعدة جديدة» فوق بيسكّر القعدة الحالية عند الكل وبيفتح وحدة جديدة.</li>
     <li>كل واحد بيعاير وجّه أول مرة (نص دقيقة): بيحرّك راسه بكل الاتجاهات، بيرفع حواجبه، بيضحك، بيفتح تمّه، وبيغمّز بكل عين. المعايرة بتنحفظ عموبايله.</li>
     <li>خلّي الموبايل قدّام وجّك بإضاءة منيحة، ووجّك كله بالكادر.</li>
     <li>عجلة الحظ بتختار اللعبة، والكل بيبلّش سوا بنفس اللحظة بعد العدّ 3، 2، 1.</li>
@@ -527,6 +536,21 @@ details.qd summary::-webkit-details-marker{display:none}
 </div></div>
 
 <!-- تأكيد -->
+<div class="sheet" id="shGroup"><div class="in">
+  <div class="grab"></div>
+  <h3>عرّفوا القعدة</h3>
+  <p class="mut" style="margin:0">الاسم والصورة الجماعية بيطلعوا بالكشف وبصور الستوري.</p>
+  <span class="label">نوع القعدة</span>
+  <div class="chips" id="gt"></div>
+  <div class="row hide" id="gtIn" style="margin-top:8px"><input class="field" id="gtc" maxlength="16" placeholder="اكتب نوع القعدة"><button class="btn sm" id="gtcB" style="flex:none;width:auto">تمام</button></div>
+  <span class="label">اسم العيلة أو الشلة</span>
+  <input class="field" id="gn" maxlength="22" placeholder="مثلاً: شلة الخميس">
+  <span class="label">صورة جماعية</span>
+  <label class="ppick gpick" id="gp">خدوا سيلفي سوا<br>أو اختاروا صورة</label>
+  <div class="picks"><button class="btn sm ghost" data-pick="group">من الصور</button><button class="btn sm ghost" data-selfie="group">سيلفي جماعي (مؤقت)</button></div>
+  <div style="margin-top:18px"><button class="btn" id="grpDone">تمام</button></div>
+</div></div>
+
 <div class="sheet confirm" id="shConf"><div class="in">
   <div class="grab"></div>
   <h3 id="confT"></h3><p class="mut" id="confP" style="margin:4px 0 0"></p>

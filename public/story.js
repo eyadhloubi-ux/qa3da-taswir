@@ -76,6 +76,17 @@ async function hero(c, t, d, X, Y, w, h, r) {
   }
   rr(0, c, X, Y, w, h, r); c.lineWidth = 7; c.strokeStyle = t.sh; c.stroke();
 }
+// صورة الشلة: بولاريد صغيرة لازقة عالصورة
+async function groupInset(c, t, d, x, y, w, rot) {
+  if (d.team) return; const gp = await img(d.group.photo); if (!gp) return;
+  const h = w * .75, cap = d.group.name || d.group.type || 'الشلة';
+  c.save(); c.translate(x, y); c.rotate(rot);
+  box(c, t, -w / 2 - 16, -h / 2 - 16, w + 32, h + 82, 8, '#FFFFFF', 8);
+  clipR(c, -w / 2, -h / 2, w, h, 4, () => cover(c, gp, -w / 2, -h / 2, w, h));
+  txt(c, cap, 0, h / 2 + 48, { f: FD, w: 700, size: 34, c: '#1A1C24', max: w });
+  c.fillStyle = 'rgba(255,209,102,.9)'; c.fillRect(-60, -h / 2 - 36, 120, 40); c.lineWidth = 3; c.strokeStyle = t.sh; c.strokeRect(-60, -h / 2 - 36, 120, 40);
+  c.restore();
+}
 function badge(c, t, s, x, y, size, fill, col) {
   c.save(); c.font = `700 ${size}px ${FB}`; c.direction = 'rtl'; const w = c.measureText(s).width + size * 1.1, h = size * 1.7;
   box(c, t, x - w / 2, y - h / 2, w, h, size * .45, fill || ACC, 6); c.restore();
@@ -103,6 +114,7 @@ async function rankStory(c, t, lay, d) {
   if (lay === 'cover') {
     box(c, t, 80, 220, W - 160, 940, 40, t.surf, 12);
     await hero(c, t, d, 110, 250, W - 220, 880, 30);
+    await groupInset(c, t, d, 250, 930, 290, -.07);
     badge(c, t, d.title, W / 2, 1160, 48);
     txt(c, who, W / 2, 1318, { f: FD, w: 700, size: 92, c: t.ink, max: W - 160 });
     if (d.team) txt(c, 'أنا: ' + d.me.name, W / 2, 1380, { size: 34, c: t.ink2, max: W - 200 });
@@ -115,6 +127,7 @@ async function rankStory(c, t, lay, d) {
     txt(c, who, 0, 395, { f: FD, w: 700, size: 76, c: '#1A1C24', max: 700 });
     if (d.team) txt(c, 'أنا: ' + d.me.name, 0, 450, { size: 32, c: '#6A6C75', max: 640 });
     c.restore();
+    await groupInset(c, t, d, 215, 360, 270, -.13);
     // شريط لاصق
     c.save(); c.translate(W / 2 + 20, 268); c.rotate(.06); c.fillStyle = 'rgba(255,138,92,.85)'; c.fillRect(-120, -30, 240, 60); c.lineWidth = 4; c.strokeStyle = t.sh; c.strokeRect(-120, -30, 240, 60); c.restore();
     // ختم المركز
@@ -136,6 +149,7 @@ async function rankStory(c, t, lay, d) {
     const S_ = 520, X = (W - S_) / 2, Y = 430;
     c.save(); c.beginPath(); c.arc(W / 2, Y + S_ / 2, S_ / 2 + 10, 0, 7); c.fillStyle = t.sh; c.fill(); c.restore();
     c.save(); c.beginPath(); c.arc(W / 2, Y + S_ / 2, S_ / 2, 0, 7); c.clip(); await hero(c, t, d, X, Y, S_, S_, 0); c.restore();
+    await groupInset(c, t, d, 870, 830, 230, .09);
     txt(c, who, W / 2, 1060, { f: FD, w: 700, size: 86, c: t.ink, max: W - 260 });
     if (d.team) txt(c, 'أنا: ' + d.me.name, W / 2, 1115, { size: 32, c: t.ink2, max: W - 300 });
     // أرقام
@@ -155,7 +169,7 @@ async function albumStory(c, t, lay, d) {
   await avatarImg(c, t, d.me, W - 190, 205, 110, 32);
   txt(c, 'ألبوم ' + d.me.name, W - 220, 265, { align: 'right', f: FD, w: 700, size: 56, c: t.ink, max: 620 });
   txt(c, `${d.title} · ${d.pts} نقطة`, W - 220, 315, { align: 'right', size: 32, c: t.ink2, max: 620 });
-  const A = d.album;
+  const A = d.group.photo ? [{ img: d.group.photo, game: d.group.name || 'صورة القعدة', l: d.group.type || '📸 سوا' }].concat(d.album) : d.album;
   if (!A.length) {
     box(c, t, 140, 600, W - 280, 600, 40);
     lens(c, t, W / 2, 820, 120);

@@ -10,6 +10,25 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmt = n => (Math.round(n * 10) / 10).toString();
 const LSget = (k, d) => { try { const v = localStorage.getItem('tsw_' + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } };
 const LSset = (k, v) => { try { localStorage.setItem('tsw_' + k, JSON.stringify(v)); } catch (_) {} };
+// مؤثرات صوتية للتلبيك (رمش)
+function sfx(kind) {
+  try {
+    const c = beep.c || (beep.c = new (window.AudioContext || window.webkitAudioContext)()); if (c.state === 'suspended') c.resume();
+    const t0 = c.currentTime, g = c.createGain(); g.connect(c.destination);
+    if (kind === 'boom' || kind === 'clap') {
+      const len = kind === 'boom' ? .6 : .15, buf = c.createBuffer(1, c.sampleRate * len, c.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, kind === 'boom' ? 2 : 4);
+      const src = c.createBufferSource(); src.buffer = buf; const f = c.createBiquadFilter(); f.type = kind === 'boom' ? 'lowpass' : 'highpass'; f.frequency.value = kind === 'boom' ? 400 : 1500;
+      src.connect(f); f.connect(g); g.gain.value = .5; src.start();
+      return;
+    }
+    const o = c.createOscillator(); o.connect(g);
+    if (kind === 'siren') { o.type = 'sawtooth'; o.frequency.setValueAtTime(500, t0); o.frequency.linearRampToValueAtTime(1300, t0 + .35); o.frequency.linearRampToValueAtTime(500, t0 + .7); g.gain.value = .12; o.start(); o.stop(t0 + .7); }
+    else if (kind === 'horn') { o.type = 'square'; o.frequency.setValueAtTime(330, t0); o.frequency.setValueAtTime(262, t0 + .2); g.gain.value = .14; o.start(); o.stop(t0 + .45); }
+    else if (kind === 'drop') { o.type = 'sine'; o.frequency.setValueAtTime(1600, t0); o.frequency.exponentialRampToValueAtTime(120, t0 + .5); g.gain.value = .2; o.start(); o.stop(t0 + .5); }
+    else { o.type = 'square'; o.frequency.value = 1800; g.gain.value = .12; o.start(); o.stop(t0 + .08); }
+  } catch (_) {}
+}
 function beep(f, ms) { try { const c = beep.c || (beep.c = new (window.AudioContext || window.webkitAudioContext)()); if (c.state === 'suspended') c.resume(); const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f || 880; g.gain.value = .08; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + (ms || 120) / 1000); } catch (_) {} }
 
 // ---------- الكاميرا والكشف ----------
@@ -468,8 +487,8 @@ const ic = {
   reaction: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>'
 };
 const GAMES = {
-  blink: { name: 'لا ترمش', icon: ic.eye, short: 'آخر واحد بيضل فاتح عيونه بيربح', how: 'حدّق بالكاميرا وما ترمش. أول رمشة بتطلّعك. إذا طلع وجّك من الكادر الوقت بيوقف لحد ما ترجع. أطول وقت بيربح.', facing: 'user' },
-  color: { name: 'صيّاد الألوان', icon: ic.drop, short: 'لاقي اللون وصوّره بأسرع وقت', how: 'الكاميرا الخلفية بتنفتح. بيطلعلك 3 ألوان، دوّر عليهن حولك وحط الدائرة على اللون واكبس «صوّر». كل ما قرّبت أكتر نقاطك أعلى.', facing: 'environment' },
+  blink: { name: 'لا ترمش', icon: ic.eye, short: 'آخر واحد بيضل فاتح عيونه بيربح', how: 'حدّق بالكاميرا وما ترمش ولا تتحرك، ولا حتى وجّك. أول رمشة أو حركة بتطلّعك، وانتبه… رح تطلعلك مفاجآت لتلبكك. إذا طلع وجّك من الكادر الوقت بيوقف لحد ما ترجع. أطول وقت بيربح.', facing: 'user' },
+  color: { name: 'صيّاد الألوان', icon: ic.drop, short: 'لاقي اللون وصوّره بأسرع وقت', how: 'الكاميرا الخلفية بتنفتح. بيطلعلك 3 ألوان، دوّر عليهن حولك وحط الدائرة على اللون واكبس بأي مكان عالشاشة. كل ما قرّبت أكتر نقاطك أعلى.', facing: 'environment' },
   blind: { name: 'التصوير الأعمى', icon: ic.blind, short: 'صوّر حالك بالمكان الصح… بلا ما تشوف', how: 'الشاشة بتسوَد. بيطلعلك رسم وين لازم يكون وجّك وقدّيش كبير. حرّك الموبايل بلا ما تشوف واكبس «صوّر». 3 لقطات.', facing: 'user' },
   frame: { name: 'ثبّت الإطار', icon: ic.frame, short: 'خلّي أنفك جوّا المربع اللي عم يتحرك', how: 'في مربع عم يتحرك عالشاشة. حرّك راسك لتضل نقطة أنفك جوّاه. كل ما ضليت جوّاه أكتر بتربح.', facing: 'user' },
   wink: { name: 'غمزات', icon: ic.wink, short: 'غمّز بالعين الصح… وجمّع نقاط', how: 'بيطلعلك «يمين» أو «شمال». غمّز بالعين المطلوبة، وبعد كل غمزة فتّح عيونك التنتين ليطلع الأمر الجاي. الغلط ما بيطلّعك، بس ما بيعطيك نقطة. أكتر غمزات صح خلال 30 ثانية بيربح. قرّب الموبايل على وجّك منيح.', facing: 'user' },
@@ -517,7 +536,7 @@ function play(opts) {
   const status = (t, kind) => { const e = $('#gst'); e.textContent = t || ''; e.className = 'status' + (kind ? ' ' + kind : ''); e.style.display = t ? '' : 'none'; };
   const hud = h => ($('#ghud').innerHTML = h || '');
   const fx = (h, ms) => { const e = $('#gfx'); e.innerHTML = h; e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); clearTimeout(fx.t); fx.t = setTimeout(() => e.classList.remove('on'), ms || 1400); };
-  let done = false, raf = 0, snap = null, ready = false;
+  let done = false, raf = 0, snap = null, ready = false; const unhook = [];
   const S = {}; let T = thresholds(null), C = T.C, lastFace = 0, prevT = 0, startedLoop = false, revived = 0;
   const base = { n: 0, sum: {} };
   const dur = duration(opts.id, opts.seed);
@@ -533,11 +552,11 @@ function play(opts) {
     status(''); $('#gtm').textContent = '✓'; $('#gbar').style.width = '0';
     $('#gact').innerHTML = '';
     hud(`<div class="gdone"><b>${label}</b><span>${fem ? 'استني' : 'استنى'} الباقي…</span></div>`);
-    window.removeEventListener('resize', sizeCanvas);
+    window.removeEventListener('resize', sizeCanvas); unhook.forEach(f => f());
     if (G.facing === 'environment' && !opts.sim) Cam.open('user').then(() => Cam.attach(video)).catch(() => {});
     opts.onDone(Math.round(score * 10) / 10, label, snap);
   }
-  const api = { stop() { done = true; cancelAnimationFrame(raf); window.removeEventListener('resize', sizeCanvas); },
+  const api = { stop() { done = true; cancelAnimationFrame(raf); window.removeEventListener('resize', sizeCanvas); unhook.forEach(f => f()); },
     // الجولة تسكّرت قبل ما يخلّص: منبعت نتيجته لهلّق
     finishNow() { if (done) return; if (!startedLoop || !ready) return api.stop(); const v = current(); finish(v, labelFor(opts.id, v, fem)); } };
   function current() {
@@ -629,7 +648,13 @@ function play(opts) {
   const missing = now => now - lastFace;
 
   const setup = {
-    blink() { S.events = Array.from({ length: 10 }, (_, i) => ({ at: 4 + i * 6 + r() * 4, e: FUNNY[Math.floor(r() * FUNNY.length)] })); S.closedAt = 0; S.vis = 0; },
+    blink() {
+      // مفاجآت للتلبيك: صوت + شي بيطلع عالشاشة
+      const K = ['emoji', 'flash', 'shake', 'fake', 'spider', 'zoom', 'emoji', 'boom'];
+      let at = 2.5; S.events = [];
+      while (at < 70) { S.events.push({ at, k: K[Math.floor(r() * K.length)], e: FUNNY[Math.floor(r() * FUNNY.length)] }); at += 2.2 + r() * 3.2; }
+      S.cl = 0; S.vis = 0; S.ref = null; S.refN = 0; S.mv = 0;
+    },
     laugh() { S.cmd = 'smile'; S.n = 0; S.win = 2; S.cmdAt = 0; S.rts = []; S.holdAt = 0; $('#gact').innerHTML = '<div class="bigcmd" id="gcmd"></div><div class="mbar" style="margin-top:8px"><b id="gcb"></b></div>'; },
     brows() { S.n = 0; S.up = false; S.hist = []; },
     wink() {
@@ -656,20 +681,36 @@ function play(opts) {
       S.list = shuffle(COLORS, r).slice(0, 3); S.i = 0; S.best = [0, 0, 0]; S.per = 11; S.off = 0;
       $('#gact').innerHTML = '<div class="swatch"><span id="gsw"></span><div><small>دوّر على</small><b id="gswn"></b></div><span id="gmy" class="my"></span></div><button class="btn big shoot" id="gshoot">صوّر 📸</button>';
       $('#gshoot').onclick = () => (S.want = true);
+      // أي كبسة عالشاشة بتصوّر
+      S.tap = e => { if (done || e.target.closest('button, a, input, textarea, .sheet, .top, header')) return; S.want = true; };
+      document.addEventListener('pointerdown', S.tap); unhook.push(() => document.removeEventListener('pointerdown', S.tap));
     }
   };
 
   const tick = {
     blink(face, t, dt, now) {
-      const ev = S.events.find(e => !e.done && t >= e.at); if (ev) { ev.done = true; fx(`<span class="pop">${ev.e}</span>`, 1100); }
+      const ev = S.events.find(e => !e.done && t >= e.at); if (ev) { ev.done = true; surprise(ev); }
       if (face) {
+        // سكّرة: تعابير العين أو فتحة العين الهندسية (أي وحدة منهن بتكفي)
+        const bt = k => T.nb(k) + Math.max(.1, .38 * (T.blink[k] - T.nb(k)) / .5);
+        const b1 = face.bs[E1] || 0, b2 = face.bs[E2] || 0;
+        const rA = C.n.earA ? ear(face.lm, 'A') / C.n.earA : 1, rB = C.n.earB ? ear(face.lm, 'B') / C.n.earB : 1;
+        const strong = (b1 > T.blink[E1] && b2 > T.blink[E2]) || (rA < .6 && rB < .6);
+        const soft = (b1 > bt(E1) && b2 > bt(E2)) || (rA < .74 && rB < .74);
+        if (strong) S.cl += 2; else if (soft) S.cl += 1; else S.cl = 0;
+        if (S.cl >= 2) return lose(fem ? 'رمشتي! 👁' : 'رمشت! 👁');
+        // ممنوع تتحرك: منسجّل مكان الوجه بأول ثانية
+        if (S.refN < 8) { S.ref = S.ref || { x: 0, y: 0, w: 0, r: 0 }; S.ref.x += face.nose.x; S.ref.y += face.nose.y; S.ref.w += face.box.w; S.ref.r += face.roll; S.refN++; if (S.refN === 8) for (const k in S.ref) S.ref[k] /= 8; }
+        else {
+          const R = S.ref, mvp = Math.hypot(face.nose.x - R.x, face.nose.y - R.y) / R.w, mvs = Math.abs(face.box.w / R.w - 1), mvr = Math.abs(face.roll - R.r);
+          const m = Math.max(mvp / .35, mvs / .2, mvr / 12);
+          S.mv = m > 1 ? S.mv + dt : 0;
+          if (S.mv > .25) return lose(fem ? 'تحرّكتي! 🫨' : 'تحرّكت! 🫨');
+          if (m > .6) { status('لا تتحرك! 🗿', 'bad'); } else status('عيونك فاتحة ✓ لا تتحرك', 'ok');
+        }
         S.vis += dt;
-        const c = (face.bs[E1] || 0) > T.blink[E1] && (face.bs[E2] || 0) > T.blink[E2];
-        if (c) { if (!S.closedAt) S.closedAt = now; } else S.closedAt = 0;
-        if (S.closedAt && now - S.closedAt >= 70) return lose(fem ? 'رمشتي!' : 'رمشت!');
-        status('عيونك فاتحة ✓', 'ok');
       } else {
-        S.closedAt = 0;
+        S.cl = 0;
         status(`رجّع وجّك… الوقت واقف`, 'warn');
         if (missing(now) > 5000) return finish(S.vis, labelFor('blink', S.vis, fem) + ' 🙈');
       }
@@ -677,6 +718,20 @@ function play(opts) {
       hud(`<div class="score"><b class="n">${fmt(S.vis)}</b><span>ثانية صامد${fem ? 'ة' : ''}</span></div>`);
       if (S.vis >= MAX.blink || t >= dur) finish(Math.min(MAX.blink, S.vis), labelFor('blink', Math.min(MAX.blink, S.vis), fem));
       function lose(why) { snap = Cam.snapshot(video); status(why, 'bad'); finish(S.vis, labelFor('blink', S.vis, fem)); }
+      function surprise(ev) {
+        const cam = $('#gcam');
+        const fxc = (cls, ms) => { cam.classList.remove(cls); void cam.offsetWidth; cam.classList.add(cls); setTimeout(() => cam.classList.remove(cls), ms); };
+        switch (ev.k) {
+          case 'flash': { const c = ['#FF8A5C', '#FFD166', '#9AD1F5', '#fff', '#E5484D'][Math.floor(r() * 5)]; const e = document.createElement('div'); e.className = 'bang'; e.style.background = c; cam.appendChild(e); setTimeout(() => e.remove(), 500); sfx('clap'); break; }
+          case 'shake': fxc('shake', 600); sfx('horn'); fx(`<span class="pop">${ev.e}</span>`, 700); break;
+          case 'fake': fx(`<span class="pop sm">${fem ? 'رمشتي!' : 'رمشت!'} 😱</span>`, 700); sfx('drop'); setTimeout(() => !done && fx('<span class="pop sm">مزح 😜</span>', 700), 750); break;
+          case 'spider': { const e = document.createElement('div'); e.className = 'crawl'; e.textContent = r() < .5 ? '🕷️' : '🪳'; e.style.top = (15 + r() * 60) + '%'; cam.appendChild(e); setTimeout(() => e.remove(), 1800); sfx('tick'); break; }
+          case 'zoom': fx(`<span class="pop huge">${ev.e}</span>`, 900); sfx('siren'); break;
+          case 'boom': fxc('shake', 600); fx('<span class="pop huge">💥</span>', 800); sfx('boom'); break;
+          default: fx(`<span class="pop">${ev.e}</span>`, 1000); sfx('tick');
+        }
+        if (navigator.vibrate) try { navigator.vibrate(60); } catch (_) {}
+      }
     },
     brows(face, t, dt, now, left) {
       if (face) {
@@ -758,12 +813,13 @@ function play(opts) {
         const u = Math.sign(d) === Math.sign(sR) ? clamp(d / (sR * .8), 0, 1) : -clamp(d / (sL * .8), 0, 1);
         S.tilt += (u - S.tilt) * Math.min(1, dt * 8);
       }
-      if (t >= S.wt) { const lvl = Math.min(1, t / 25); S.windT = (S.wr() * 2 - 1) * (.7 + lvl * 2.4); S.wt = t + 1.2 + S.wr() * 1.6; }
-      S.wind += (S.windT - S.wind) * Math.min(1, dt * 2);
+      if (t >= S.wt) { const lvl = Math.min(1, t / 25); const sg = S.wr() < .35 ? -Math.sign(S.windT || 1) : Math.sign(S.windT || (S.wr() < .5 ? -1 : 1)); S.windT = sg * (.6 + S.wr() * .4) * (1.5 + lvl * 3); S.wt = t + 1.4 + S.wr() * 1.8; }
+      S.wind += (S.windT - S.wind) * Math.min(1, dt * 3);
+      const gust = Math.sin(t * 7.3) * .35 * Math.min(1, t / 20) * Math.sign(S.wind || 1);
       const ang = S.tilt * .45;
       if (S.pause > 0) { S.pause -= dt; if (S.pause <= 0) { S.x = 0; S.v = 0; } }
       else {
-        S.v += (Math.sin(ang) * 6 + S.wind) * Math.min(dt, .1); S.v *= Math.pow(.6, Math.min(dt, .1)); S.x += S.v * Math.min(dt, .1) * .55;
+        S.v += (Math.sin(ang) * 9 + S.wind + gust + S.x * 1.6) * Math.min(dt, .1); S.v *= Math.pow(.7, Math.min(dt, .1)); S.x += S.v * Math.min(dt, .1) * .55;
         if (Math.abs(S.x) > 1) { S.falls++; S.pause = 1.2; fx('<span class="pop sm">💥 وقعت!</span>', 900); beep(300, 150); if (S.falls === 1) snap = Cam.snapshot(video); }
         else S.on += dt;
       }
@@ -777,22 +833,26 @@ function play(opts) {
         ctx.fillStyle = '#FF8A5C'; ctx.beginPath(); ctx.arc(bx, by, 14, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
       }
       const w = S.wind; ctx.font = '700 18px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-      ctx.fillText(Math.abs(w) < .4 ? '🍃 هادي' : (w > 0 ? '💨 ➡'.repeat(1) : '⬅ 💨') + (Math.abs(w) > 1.8 ? ' قوي!' : ''), cw / 2, ch * .2);
+      ctx.fillText(Math.abs(w) < .4 ? '🍃 هادي' : (w > 0 ? '💨 ➡'.repeat(1) : '⬅ 💨') + (Math.abs(w) > 3 ? ' عاصفة!' : Math.abs(w) > 1.8 ? ' قوي!' : ''), cw / 2, ch * .2);
       status(face ? (S.pause > 0 ? 'وقعت! رجعت…' : 'ميّل راسك لتوازن') : 'قرّب وجّك', face ? (S.pause > 0 ? 'bad' : 'ok') : 'warn');
       hud(`<div class="score"><b class="n">${fmt(S.on)}</b><span>ثانية عالميزان</span></div>`);
       if (left <= 0) finish(S.on, labelFor('balance', S.on, fem));
     },
     bubbles(face, t, dt, now, left) {
-      const ex = C.ex, cw = cv.cw, ch = cv.ch, R = Math.min(cw, ch) * .09;
-      if (t >= S.next && S.b.length < 3) {
-        const u = S.br(), w = S.br(), life = Math.max(1.3, 2.6 - t * .05);
-        S.b.push({ x: ex.x0 + (.05 + .9 * u) * (ex.x1 - ex.x0), y: ex.y0 + (.05 + .9 * w) * (ex.y1 - ex.y0), born: t, life, gold: S.br() < .15 });
-        S.next = t + Math.max(.35, .9 - t * .02);
+      const ex = C.ex, cw = cv.cw, ch = cv.ch, R = Math.min(cw, ch) * .08;
+      if (t >= S.next && S.b.length < 7) {
+        // بكل الشاشة: منقسمها لـ9 مناطق وكل فقاعة بمنطقة فاضية، ومنطقة الحركة من المعايرة مكبّرة شوي
+        const mx = (ex.x1 - ex.x0) * .15, my = (ex.y1 - ex.y0) * .15, X0 = Math.max(.02, ex.x0 - mx), X1 = Math.min(.98, ex.x1 + mx), Y0 = Math.max(.02, ex.y0 - my), Y1 = Math.min(.98, ex.y1 + my);
+        const used = new Set(S.b.map(b => b.z)), free = []; for (let z = 0; z < 9; z++) if (!used.has(z) && z !== S.lastZ) free.push(z);
+        const z = free.length ? free[Math.floor(S.br() * free.length)] : Math.floor(S.br() * 9); S.lastZ = z;
+        const u = ((z % 3) + .15 + .7 * S.br()) / 3, w = (Math.floor(z / 3) + .15 + .7 * S.br()) / 3, life = Math.max(1.6, 3 - t * .05);
+        S.b.push({ x: X0 + u * (X1 - X0), y: Y0 + w * (Y1 - Y0), z, born: t, life, gold: S.br() < .15, sz: .75 + S.br() * .5 });
+        S.next = t + Math.max(.18, .45 - t * .012);
       }
       let nx = -999, ny = -999; if (face) [nx, ny] = v2c(face.nose.x, face.nose.y);
       S.b = S.b.filter(b => {
         const age = (t - b.born) / b.life; if (age >= 1) return false;
-        const [bx, by] = v2c(b.x, b.y), rr = R * (1 - .25 * age);
+        const [bx, by] = v2c(b.x, b.y), rr = R * (b.sz || 1) * (1 - .25 * age);
         if (Math.hypot(nx - bx, ny - by) < rr + 6) { S.n += b.gold ? 2 : 1; fx(`<span class="pop sm">${b.gold ? '✨ +2' : '+1'}</span>`, 400); beep(b.gold ? 1400 : 1000, 50); if (S.n >= 5 && !snap) snap = Cam.snapshot(video); return false; }
         ctx.globalAlpha = 1 - age * .5; ctx.fillStyle = b.gold ? 'rgba(255,209,102,.55)' : 'rgba(154,209,245,.4)';
         ctx.beginPath(); ctx.arc(bx, by, rr, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
@@ -863,16 +923,21 @@ function play(opts) {
         const tgt = clamp(.5 + u * .5, 0, 1); S.x += (tgt - S.x) * Math.min(1, dt * 10);
       }
       if (t >= S.next) { const sr = S.spawnR; S.objs.push({ x: .08 + sr() * .84, y: -.08, k: sr() < .55 ? 'star' : 'rock', v: .32 + sr() * .2 + t * .012 }); S.next = t + .55 - Math.min(.25, t * .01); }
-      ctx.fillStyle = 'rgba(26,28,36,.35)'; ctx.fillRect(0, 0, cw, ch);
+      ctx.fillStyle = 'rgba(26,28,36,.55)'; ctx.fillRect(0, 0, cw, ch);
       const px = S.x * cw, py = ch * .84, R = 16;
       for (const o of S.objs) {
         o.y += o.v * Math.min(dt, .1); const ox = o.x * cw, oy = o.y * ch;
-        if (!o.gone && Math.hypot(ox - px, oy - py) < R + 16) {
+        if (!o.gone && Math.hypot(ox - px, oy - py) < R + 19) {
           o.gone = true;
           if (o.k === 'star') { S.stars++; fx('<span class="pop sm">⭐ +1</span>', 450); if (S.stars === 5) snap = Cam.snapshot(video); }
           else { S.stars = Math.max(0, S.stars - 1); S.hit = t; fx('<span class="pop sm">💥 −1</span>', 500); }
         }
-        if (!o.gone) { ctx.font = '28px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.k === 'star' ? '⭐' : '🪨', ox, oy); }
+        if (!o.gone) {
+          // خلفية غامقة وإطار ليبينوا فوق الكاميرا
+          ctx.fillStyle = o.k === 'star' ? 'rgba(26,28,36,.92)' : 'rgba(90,20,24,.95)'; ctx.beginPath(); ctx.arc(ox, oy, 21, 0, 7); ctx.fill();
+          ctx.lineWidth = 3; ctx.strokeStyle = o.k === 'star' ? '#FFD166' : '#E5484D'; ctx.stroke();
+          ctx.font = '26px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.k === 'star' ? '⭐' : '🪨', ox, oy + 1);
+        }
       }
       S.objs = S.objs.filter(o => o.y < 1.1 && !o.gone);
       ctx.fillStyle = t - S.hit < .3 ? '#E5484D' : '#FF8A5C'; ctx.beginPath(); ctx.arc(px, py, R, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
@@ -926,10 +991,10 @@ function play(opts) {
           const sc = colorScore(avg, tg.c);
           if (sc > S.best[S.i]) { S.best[S.i] = sc; if (!snap || S.i === 0) snap = Cam.snapshot(video); }
           $('#gmy').style.background = `rgb(${avg.map(Math.round)})`;
-          flashBang(); status(`قرّبت ${Math.round(sc)}%`, sc > 70 ? 'ok' : 'warn');
+          flashBang(); S.msgT = now + 1100; status(`قرّبت ${Math.round(sc)}%`, sc > 70 ? 'ok' : 'warn');
           if (sc >= 88) { if (S.i >= 2) return end(); S.off += (S.i + 1) * S.per - tt; }
         }
-      } else status('حط الدائرة عاللون واكبس صوّر', 'ok');
+      } else if (!(S.msgT > now)) status('حط الدائرة عاللون واكبس بأي مكان', 'ok');
       const sum = S.best.reduce((a, b) => a + b, 0) / 3;
       hud(`<div class="score"><b class="n">${S.i + 1}/3</b><span>لون · مجموعك ${Math.round(sum)}%</span></div>`);
       if (tt >= S.per * 3 || left <= 0) end();

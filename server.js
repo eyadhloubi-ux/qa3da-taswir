@@ -160,6 +160,8 @@ wss.on('connection', ws => {
       case 'create': {
         const code = newCode();
         const hostKey = crypto.randomBytes(12).toString('hex');
+        // كان بقعدة تانية؟ منفكّو عنها
+        const prev = ws.code && rooms.get(ws.code); if (prev && prev.socks.get(ws.pid) === ws) prev.socks.delete(ws.pid);
         const r = { code, hostKey, hostPid: m.pid, hostSock: ws, socks: new Map([[m.pid, ws]]), banned: new Set(), state: null, hostGoneAt: 0, claimOpen: false, counted: new Set([m.pid]), photos: {} };
         rooms.set(code, r);
         ws.pid = m.pid; ws.code = code;

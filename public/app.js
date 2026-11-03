@@ -340,6 +340,7 @@ function renderLobby() {
   } else h += `<div class="plist">${S.players.map(chip).join('')}</div>`;
   h += `<div class="edit-hint">${isHost ? 'اكبس على أي اسم لتعدّله أو تنقله أو تطلّعه، أو على اسمك لتعدّل صورتك.' : 'اكبس على اسمك لتعدّل اسمك وصورتك.'}</div>`;
   $('#lobbyPlayers').innerHTML = h;
+  $('#grpBox').innerHTML = groupCard(false); bindGroup();
   $$('#lobbyPlayers .pl').forEach(e => e.onclick = () => { const pid = e.dataset.pid; if (pid === myPid) openEdit(); else if (isHost) openPl(pid); });
   $$('[data-rn]').forEach(b => b.onclick = e => { e.stopPropagation(); const i = +b.dataset.rn; const v = prompt('اسم الفريق', S.teams[i].name); if (v && v.trim()) { S.teams[i].name = v.trim().slice(0, 18); pushState(); render(); } });
   // الإعدادات
@@ -627,21 +628,33 @@ function titleFor(rank, g, team, i) {
 
 // ---------- قبل الكشف ----------
 const GTYPES = ['شلة', 'رفقة', 'عيلة', 'زملاء', 'غير شي'];
-function renderWrap() {
-  if (!isHost) { waitScreen('الريس عم يحضّر الكشف… 🎉'); return; }
-  if (cur !== 'wrap') {
-    show('wrap');
-    $('#gn').value = S.group.name || ''; setPP($('#gp'), S.group.photo, 'خدوا سيلفي سوا<br>أو اختاروا صورة');
-  }
+function groupCard(big) {
+  const g = S.group, ph = g.photo, nm = g.name || '', ty = g.type || '';
+  if (!ph && !nm && !ty) return isHost ? `<button class="grp empty ${big ? 'big' : ''}" id="grpOpen"><span class="gim">📸</span><span><b>مين القعدة؟</b><small>حطّوا اسم العيلة أو الشلة وخدوا صورة جماعية</small></span></button>` : '';
+  return `<button class="grp ${big ? 'big' : ''}" id="grpOpen" ${isHost ? '' : 'disabled'}><span class="gim">${ph ? `<img src="${ph}" alt="">` : '📸'}</span><span><b>${esc(nm || ty || 'قعدتنا')}</b><small>${nm && ty ? esc(ty) + ' · ' : ''}${isHost ? 'اكبس لتعدّل' : `${S.players.length} لاعبين`}</small></span></button>`;
+}
+function bindGroup() { const b = $('#grpOpen'); if (b && isHost) b.onclick = openGroup; }
+function openGroup() {
+  if (!isHost) return;
+  $('#gn').value = S.group.name || ''; setPP($('#gp'), S.group.photo, 'خدوا سيلفي سوا<br>أو اختاروا صورة');
+  renderGroupEd(); sheet('shGroup');
+}
+function renderGroupEd() {
   const custom = S.group.type && !GTYPES.slice(0, 4).includes(S.group.type);
   $('#gt').innerHTML = GTYPES.map(t => `<button class="chip ${S.group.type === t || (t === 'غير شي' && custom) ? 'on' : ''}" data-gt="${t}">${t === 'غير شي' && custom ? esc(S.group.type) : t}</button>`).join('');
-  $$('[data-gt]').forEach(b => b.onclick = () => { if (b.dataset.gt === 'غير شي') { $('#gtIn').classList.remove('hide'); $('#gtc').focus(); return; } S.group.type = S.group.type === b.dataset.gt ? '' : b.dataset.gt; $('#gtIn').classList.add('hide'); pushState(); renderWrap(); });
+  $$('[data-gt]').forEach(b => b.onclick = () => { if (b.dataset.gt === 'غير شي') { $('#gtIn').classList.remove('hide'); $('#gtc').focus(); return; } S.group.type = S.group.type === b.dataset.gt ? '' : b.dataset.gt; $('#gtIn').classList.add('hide'); pushState(); renderGroupEd(); });
 }
-$('#gtcB').onclick = () => { const v = $('#gtc').value.trim(); if (v) { S.group.type = v.slice(0, 16); $('#gtIn').classList.add('hide'); pushState(); renderWrap(); } };
+$('#grpDone').onclick = () => { sheet('shGroup', false); pushState(); render(); };
+function renderWrap() {
+  if (!isHost) { waitScreen('الريس عم يحضّر الكشف… 🎉'); return; }
+  show('wrap');
+  $('#wrapGrp').innerHTML = groupCard(true); bindGroup();
+}
+$('#gtcB').onclick = () => { const v = $('#gtc').value.trim(); if (v) { S.group.type = v.slice(0, 16); $('#gtIn').classList.add('hide'); pushState(); renderGroupEd(); } };
 $('#gn').oninput = e => { S.group.name = e.target.value.slice(0, 22); clearTimeout($('#gn').t); $('#gn').t = setTimeout(() => pushState(), 500); };
 $('#partyB').onclick = () => { S.reveal = 'party'; S.rv = { steps: Math.min(3, totalsSorted().length), step: 0, at: srvNow() }; S.phase = 'party'; pushState(); render(); };
 $('#allB').onclick = () => { S.reveal = 'all'; S.phase = 'final'; pushState({ finished: true }); render(); confetti(); };
-$('#editG').onclick = () => { S.phase = 'wrap'; pushState(); render(); };
+$('#editG').onclick = () => openGroup();
 $('#againB').onclick = () => confirmBox('دورة جديدة؟', 'رح تنصفّر النقاط وتبلّش دورة جديدة بنفس اللاعبين.', 'يلا', () => { S.phase = 'lobby'; S.played = []; S.history = []; S.totals = {}; S.round = null; S.cycle++; pushState(); render(); });
 
 // ---------- حفلة الكشف (الريس بيكشف التالت، التاني، الأول) ----------
@@ -739,6 +752,7 @@ function render() {
   if (!S) return;
   $('#hcode').textContent = DEMO ? '' : code || '';
   $('#plB').classList.remove('hide');
+  $('#newB').classList.toggle('hide', DEMO || S.phase === 'ended'); $('.hdr').classList.toggle('inroom', !DEMO && S.phase !== 'ended');
   if ($('#shPlayers').classList.contains('on')) renderPlayersSheet();
   // المعايرة شغالة: منكمّلها إلا إذا بلّشت لعبة إلي
   if (calApi && cur === 'calib') {
@@ -754,8 +768,26 @@ function render() {
     case 'wrap': renderWrap(); break;
     case 'party': renderParty(); break;
     case 'final': renderFinal(); break;
+    case 'ended': stopGame(); LS.set('sess', null); waitScreen('الريس سكّر هالقعدة 👋 إذا فتح وحدة جديدة، اطلب منو الكود', true); break;
   }
 }
+// قعدة جديدة: الريس بيسكّر الحالية للكل وبيفتح وحدة جديدة، والباقي بيطلعوا
+$('#newB').onclick = () => {
+  if (!S) return;
+  if (isHost) confirmBox('قعدة جديدة؟', 'رح تتسكّر هالقعدة عند الكل وتنفتح وحدة جديدة بكود جديد.', 'سكّر وافتح جديدة', () => {
+    stopGame(); if (calApi) { calApi.stop(); calApi = null; }
+    S.phase = 'ended'; pushState();
+    setTimeout(() => {
+      LS.set('sess', null); if (code) LS.set('hk_' + code, null);
+      code = null; S = null; isHost = false; hostKey = null; joinedOnce = false; curRid = null; myResult = null; album = []; lastShot = null;
+      Object.keys(PH).forEach(k => delete PH[k]); renderLobby.qr = null;
+      $('#newB').classList.add('hide'); $('#plB').classList.add('hide'); $('.hdr').classList.remove('inroom'); $('#hcode').textContent = '';
+      pendingRole = 'host'; submitted = true; waitScreen('عم نفتح قعدة جديدة…');
+      if (ws && ws.readyState === 1) doPending(); else connect();
+    }, 400);
+  });
+  else confirmBox('تطلع من هالقعدة؟', 'بترجع للبداية وفيك تفتح قعدة جديدة أو تدخل بكود.', 'اطلع', () => { wsend({ t: 'leave', code, pid: myPid }); LS.set('sess', null); location.href = location.pathname; });
+};
 $('#leaveB').onclick = () => confirmBox('تطلع من القعدة؟', '', 'اطلع', () => { wsend({ t: 'leave', code, pid: myPid }); LS.set('sess', null); location.href = location.pathname; });
 
 // ---------- الصور: اختيار + سيلفي + قص ----------
@@ -819,7 +851,7 @@ $('#cropOk').onclick = () => {
   $('#crop').classList.remove('on');
   if (crop.target === 'me') { me.photo = url; setPP($('#pp'), url); }
   else if (crop.target === 'edit') { editPhoto = url; setPP($('#epp'), url); $('#eppDel').classList.remove('hide'); }
-  else if (crop.target === 'group') { sendPhoto('group', url); applyPhotos(); setPP($('#gp'), url); }
+  else if (crop.target === 'group') { sendPhoto('group', url); applyPhotos(); setPP($('#gp'), url); if (cur !== 'final') render(); else drawStory(); }
 };
 
 // ---------- كونفيتي ----------
