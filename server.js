@@ -86,7 +86,8 @@ function bump(key, sub, n = 1) {
 
 const GAME_NAMES = {
   blink: 'لا ترمش', color: 'صيّاد الألوان', blind: 'التصوير الأعمى', frame: 'ثبّت الإطار', wink: 'غمزات',
-  smile: 'لا تضحك', emoji: 'قلّد الإيموجي', statue: 'تمثال', brows: 'حواجب طايرة', head: 'راسك هو الجويستيك'
+  laugh: 'اضحك… جمّد!', emoji: 'قلّد الإيموجي', balance: 'ميزان الطابة', brows: 'حواجب طايرة', head: 'راسك هو الجويستيك',
+  bubbles: 'صيّاد الفقاعات', reaction: 'أسرع ردّة فعل', smile: 'لا تضحك', statue: 'تمثال'
 };
 const MODE_NAMES = { solo: 'فردي', team: 'الفريق كله', relay: 'كل عضو جولة' };
 

@@ -150,8 +150,21 @@ const browF = bs => Math.max(bs.browInnerUp || 0, ((bs.browOuterUpLeft || 0) + (
 const smileF = bs => ((bs.mouthSmileLeft || 0) + (bs.mouthSmileRight || 0)) / 2;
 const jawF = bs => bs.jawOpen || 0;
 const E1 = 'eyeBlinkLeft', E2 = 'eyeBlinkRight';
+// قياسات هندسية من نقاط الوجه (أثبت من التعابير على بعض الوجوه)
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+// المسافة بين الحاجب والعين، نسبةً لطول الوجه وعلى محوره (يعني ما بتتأثر بالميلان)
+function browGeo(lm) {
+  const top = lm[10], chin = lm[152], H = dist(top, chin) || 1, ux = (chin.x - top.x) / H, uy = (chin.y - top.y) / H;
+  const pr = (e, b) => (e.x - b.x) * ux + (e.y - b.y) * uy;
+  const L = pr(mid(lm[33], lm[133]), mid(lm[105], lm[66])), Rr = pr(mid(lm[263], lm[362]), mid(lm[334], lm[296]));
+  return (L + Rr) / 2 / H;
+}
+// فتحة العين (EAR): جهة A وجهة B
+function ear(lm, side) { const k = side === 'A' ? [33, 133, 159, 145] : [263, 362, 386, 374]; return dist(lm[k[2]], lm[k[3]]) / (dist(lm[k[0]], lm[k[1]]) || 1); }
 const DEF = {
-  n: { bs: {}, nose: { x: .5, y: .5 }, w: .35, roll: 0 },
+  n: { bs: {}, nose: { x: .5, y: .5 }, w: .35, roll: 0, bg: 0, earA: 0, earB: 0 },
+  browG: 0, earR: null,
   ex: { x0: .35, x1: .65, y0: .38, y1: .62 },
   rollR: 15, rollL: -15,
   brow: { n: .12, p: .6 }, smile: { n: .08, p: .75 }, jaw: { n: .03, p: .6 },
@@ -180,8 +193,14 @@ function thresholds(base) {
     smileHi: f('smile', nSmile, .38, .14), smileN: nSmile, smileP: nSmile + Math.max(.15, C.smile.p - C.smile.n),
     jawN: nJaw, jawP: nJaw + Math.max(.15, C.jaw.p - C.jaw.n),
     blink: { [E1]: blinkThr(E1), [E2]: blinkThr(E2) },
-    // غمزة: الفرق بين العينين لازم يتجاوز نص الفرق اللي سجّلناه بالمعايرة
-    wink(bs, side) {
+    browRel: C.n.bg && C.browG > C.n.bg ? clamp((C.browG - C.n.bg) / C.n.bg, .06, .5) : .12,
+    // غمزة: إما الفرق بين العينين (تعابير) أو فتحة العين الهندسية، حسب المعايرة
+    wink(bs, side, lm) {
+      if (lm && C.earR && C.n.earA && C.n.earB) {
+        const ts = side === 'R' ? C.earR : (C.earR === 'A' ? 'B' : 'A'), os = ts === 'A' ? 'B' : 'A';
+        const rt = ear(lm, ts) / C.n['ear' + ts], ro = ear(lm, os) / C.n['ear' + os];
+        if (rt < .62 && ro > .8) return true;
+      }
       const key = side === 'R' ? C.eyes.R : C.eyes.L, oth = side === 'R' ? C.eyes.L : C.eyes.R, cal = side === 'R' ? C.winkR : C.winkL;
       const nd = g(key) - g(oth), cd = Math.max(.25, cal.a - cal.b);
       const d = (bs[key] || 0) - (bs[oth] || 0);
@@ -225,7 +244,7 @@ function calibrate(root, done) {
   const video = $('#cbV'), cv = $('#cbC'), ctx = cv.getContext('2d');
   const C = JSON.parse(JSON.stringify(DEF)); C.n.bs = {};
   let i = 0, stepAt = 0, holdAt = 0, recUntil = 0, raf = 0, stopped = false, lastFace = 0, rec = null;
-  const nsum = {}; let nCount = 0, nose = { x: 0, y: 0 }, roll = 0, wsum = 0;
+  const nsum = {}; let nCount = 0, nose = { x: 0, y: 0 }, roll = 0, wsum = 0, gsum = { bg: 0, a: 0, b: 0 };
   const st = (t, k) => { const e = $('#cbSt'); e.textContent = t; e.className = 'status ' + (k || ''); };
   function size() { const b = $('#cbCam').getBoundingClientRect(); const d = Math.min(2, devicePixelRatio || 1); cv.width = b.width * d; cv.height = b.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); cv.cw = b.width; cv.ch = b.height; }
   function v2c(x, y) { const vw = video.videoWidth || 640, vh = video.videoHeight || 480, s = Math.max(cv.cw / vw, cv.ch / vh), dw = vw * s, dh = vh * s; return [x * dw - (dw - cv.cw) / 2, y * dh - (dh - cv.ch) / 2]; }
@@ -282,14 +301,14 @@ function calibrate(root, done) {
       case 'neutral': {
         const centered = Math.abs(f.nose.x - .5) < .2 && Math.abs(f.nose.y - .5) < .22;
         if (!centered) { st('حط وجّك بالنص', 'warn'); holdAt = 0; return; }
-        if (!holdAt) { holdAt = now; nCount = 0; for (const k in nsum) delete nsum[k]; nose = { x: 0, y: 0 }; roll = 0; wsum = 0; }
+        if (!holdAt) { holdAt = now; nCount = 0; for (const k in nsum) delete nsum[k]; nose = { x: 0, y: 0 }; roll = 0; wsum = 0; gsum = { bg: 0, a: 0, b: 0 }; }
         for (const k in bs) nsum[k] = (nsum[k] || 0) + bs[k];
-        nose.x += f.nose.x; nose.y += f.nose.y; roll += f.roll; wsum += f.box.w; nCount++;
+        nose.x += f.nose.x; nose.y += f.nose.y; roll += f.roll; wsum += f.box.w; nCount++; gsum.bg += browGeo(f.lm); gsum.a += ear(f.lm, 'A'); gsum.b += ear(f.lm, 'B');
         prog = (now - holdAt) / 1600;
         st('ثابت… 👌', 'ok');
         if (prog >= 1 && nCount >= 8) {
           for (const k in nsum) C.n.bs[k] = nsum[k] / nCount;
-          C.n.nose = { x: nose.x / nCount, y: nose.y / nCount }; C.n.roll = roll / nCount; C.n.w = wsum / nCount;
+          C.n.nose = { x: nose.x / nCount, y: nose.y / nCount }; C.n.roll = roll / nCount; C.n.w = wsum / nCount; C.n.bg = gsum.bg / nCount; C.n.earA = gsum.a / nCount; C.n.earB = gsum.b / nCount;
           C.brow.n = browF(C.n.bs); C.smile.n = smileF(C.n.bs); C.jaw.n = jawF(C.n.bs);
           C.ex = { x0: C.n.nose.x, x1: C.n.nose.x, y0: C.n.nose.y, y1: C.n.nose.y };
           next(); return;
@@ -314,15 +333,16 @@ function calibrate(root, done) {
         st(prog >= 1 ? 'تمام ✓' : 'ميّل أكتر شوي', prog >= 1 ? 'ok' : '');
         break;
       }
-      case 'brow': { const v = browF(bs); prog = (v - C.brow.n) / .14; if (!rec || v > rec.v) rec = { v }; st(prog >= 1 ? 'تمام ✓' : 'لفوق أكتر', prog >= 1 ? 'ok' : ''); break; }
+      case 'brow': { const v = browF(bs), g = browGeo(f.lm); prog = Math.max((v - C.brow.n) / .14, C.n.bg ? (g / C.n.bg - 1) / .08 : 0); if (!rec) rec = { v, g }; rec.v = Math.max(rec.v, v); rec.g = Math.max(rec.g, g); st(prog >= 1 ? 'تمام ✓' : 'لفوق أكتر', prog >= 1 ? 'ok' : ''); break; }
       case 'smile': { const v = smileF(bs); prog = (v - C.smile.n) / .22; if (!rec || v > rec.v) rec = { v }; st(prog >= 1 ? 'حلوة الضحكة ✓' : 'أعرض شوي', prog >= 1 ? 'ok' : ''); break; }
       case 'jaw': { const v = jawF(bs); prog = (v - C.jaw.n) / .22; if (!rec || v > rec.v) rec = { v }; st(prog >= 1 ? 'تمام ✓' : 'افتح أكتر', prog >= 1 ? 'ok' : ''); break; }
       case 'winkR': case 'winkL': {
         const d1 = (bs[E1] || 0) - (C.n.bs[E1] || 0), d2 = (bs[E2] || 0) - (C.n.bs[E2] || 0);
         const big = d1 > d2 ? E1 : E2, sm = big === E1 ? E2 : E1, asym = Math.abs(d1 - d2);
-        prog = Math.min(Math.max(d1, d2) / .22, asym / .16);
-        if (s.k === 'winkL' && C.eyes._R && big === C.eyes._R && asym > .12) { st('هي نفس العين! غمّز بالتانية', 'warn'); prog = 0; holdAt = 0; break; }
-        if (!rec || asym > rec.asym) rec = { asym, big, a: bs[big] || 0, b: bs[sm] || 0 };
+        const rA = ear(f.lm, 'A') / (C.n.earA || .3), rB = ear(f.lm, 'B') / (C.n.earB || .3), eAs = Math.abs(rA - rB), eSide = rA < rB ? 'A' : 'B';
+        prog = Math.max(Math.min(Math.max(d1, d2) / .22, asym / .16), Math.min((1 - Math.min(rA, rB)) / .35, eAs / .28));
+        if (s.k === 'winkL' && ((C.eyes._R && big === C.eyes._R && asym > .12) || (C.earR && eSide === C.earR && eAs > .22))) { st('هي نفس العين! غمّز بالتانية', 'warn'); prog = 0; holdAt = 0; break; }
+        if (!rec || asym + eAs > rec.sc) rec = { sc: asym + eAs, asym, big, a: bs[big] || 0, b: bs[sm] || 0, eSide };
         st(prog >= 1 ? 'تمام ✓' : 'سكّر عين وحدة بس', prog >= 1 ? 'ok' : '');
         break;
       }
@@ -344,10 +364,10 @@ function calibrate(root, done) {
         // حفظ نتيجة الخطوة
         if (s.k === 'tiltR') C.rollR = rec ? rec.v : C.n.roll + 15;
         if (s.k === 'tiltL') C.rollL = rec ? rec.v : C.n.roll - 15;
-        if (s.k === 'brow') C.brow.p = rec.v;
+        if (s.k === 'brow') { C.brow.p = rec.v; C.browG = rec.g; }
         if (s.k === 'smile') C.smile.p = rec.v;
         if (s.k === 'jaw') C.jaw.p = rec.v;
-        if (s.k === 'winkR') { C.eyes = { R: rec.big, L: rec.big === E1 ? E2 : E1, _R: rec.big }; C.winkR = { a: rec.a, b: rec.b }; }
+        if (s.k === 'winkR') { C.eyes = { R: rec.big, L: rec.big === E1 ? E2 : E1, _R: rec.big }; C.winkR = { a: rec.a, b: rec.b }; C.earR = rec.eSide; }
         if (s.k === 'winkL') C.winkL = { a: rec.a, b: rec.b };
         if (s.k === 'blink') C.blink = { [E1]: rec[E1], [E2]: rec[E2] };
         next();
@@ -378,7 +398,7 @@ const EMOJI = [
   { e: '🤨', n: 'شاكك', brow: .6, oneBrow: true },
   { e: '😆', n: 'عم يضحك', smile: .9, blinkHalf: true }
 ];
-function emojiMatch(t, bs, T) {
+function emojiMatch(t, bs, T, lm) {
   const g = k => bs[k] || 0;
   const nrm = (v, n, p) => clamp((v - n) / Math.max(.1, p - n), 0, 1);
   const parts = [];
@@ -389,7 +409,7 @@ function emojiMatch(t, bs, T) {
   if (t.k) for (const k in t.k) parts.push(clamp((g(k) - T.nb(k)) / t.k[k], 0, 1));
   if (t.blink) { const a = clamp((g(E1) - T.nb(E1)) / Math.max(.15, T.blink[E1] - T.nb(E1)), 0, 1), b = clamp((g(E2) - T.nb(E2)) / Math.max(.15, T.blink[E2] - T.nb(E2)), 0, 1); parts.push(Math.min(a, b)); }
   if (t.blinkHalf) { const a = Math.max(g(E1) - T.nb(E1), g(E2) - T.nb(E2)); parts.push(clamp(a / .2, 0, 1)); }
-  if (t.wink) parts.push(T.wink(bs, 'R') || T.wink(bs, 'L') ? 1 : clamp(Math.abs(g(E1) - g(E2)) / .5, 0, .6));
+  if (t.wink) parts.push(T.wink(bs, 'R', lm) || T.wink(bs, 'L', lm) ? 1 : clamp(Math.abs(g(E1) - g(E2)) / .5, 0, .6));
   let v = parts.length ? parts.reduce((a, b) => a + Math.min(1, b), 0) / parts.length : 0;
   if (t.noSmile && smileF(bs) > T.smileHi) v *= .5;
   if (t.noJaw && jawF(bs) > T.jawN + .5 * (T.jawP - T.jawN)) v *= .5;
@@ -442,30 +462,36 @@ const ic = {
   emoji: '<circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01"/><ellipse cx="12" cy="15.5" rx="2.2" ry="1.6"/>',
   statue: '<circle cx="12" cy="6" r="3"/><path d="M8 21v-6l-2-4h12l-2 4v6M9 21h6"/>',
   brows: '<path d="M4 8q3-3 6-1M14 7q3-2 6 1"/><circle cx="8" cy="13" r="1.5"/><circle cx="16" cy="13" r="1.5"/>',
-  head: '<circle cx="12" cy="9" r="5"/><path d="M5 20l3-4M19 20l-3-4M12 14v2"/><path d="M8 4l-2-2M16 4l2-2"/>'
+  head: '<circle cx="12" cy="9" r="5"/><path d="M5 20l3-4M19 20l-3-4M12 14v2"/><path d="M8 4l-2-2M16 4l2-2"/>',
+  balance: '<path d="M3 16l18-5"/><circle cx="14" cy="10" r="2.6"/><path d="M12 14.5V21M8 21h8"/>',
+  bubbles: '<circle cx="9" cy="11" r="5"/><circle cx="17.5" cy="15.5" r="3"/><circle cx="16.5" cy="6" r="1.8"/>',
+  reaction: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>'
 };
 const GAMES = {
   blink: { name: 'لا ترمش', icon: ic.eye, short: 'آخر واحد بيضل فاتح عيونه بيربح', how: 'حدّق بالكاميرا وما ترمش. أول رمشة بتطلّعك. إذا طلع وجّك من الكادر الوقت بيوقف لحد ما ترجع. أطول وقت بيربح.', facing: 'user' },
   color: { name: 'صيّاد الألوان', icon: ic.drop, short: 'لاقي اللون وصوّره بأسرع وقت', how: 'الكاميرا الخلفية بتنفتح. بيطلعلك 3 ألوان، دوّر عليهن حولك وحط الدائرة على اللون واكبس «صوّر». كل ما قرّبت أكتر نقاطك أعلى.', facing: 'environment' },
   blind: { name: 'التصوير الأعمى', icon: ic.blind, short: 'صوّر حالك بالمكان الصح… بلا ما تشوف', how: 'الشاشة بتسوَد. بيطلعلك رسم وين لازم يكون وجّك وقدّيش كبير. حرّك الموبايل بلا ما تشوف واكبس «صوّر». 3 لقطات.', facing: 'user' },
   frame: { name: 'ثبّت الإطار', icon: ic.frame, short: 'خلّي أنفك جوّا المربع اللي عم يتحرك', how: 'في مربع عم يتحرك عالشاشة. حرّك راسك لتضل نقطة أنفك جوّاه. كل ما ضليت جوّاه أكتر بتربح.', facing: 'user' },
-  wink: { name: 'غمزات', icon: ic.wink, short: 'غمّز بالعين الصح… وبسرعة', how: 'بيطلعلك «يمين» أو «شمال». غمّز بعينك اليمين أو الشمال قبل ما يخلص الوقت. الأوامر بتسرع، وأول غلطة بتطلّعك.', facing: 'user' },
-  smile: { name: 'لا تضحك', icon: ic.smile, short: 'نكت وصور مضحكة… وممنوع تبتسم', how: 'رح تطلعلك نكت وأشكال مضحكة. الكاميرا عم تراقب تمّك، أول ابتسامة بتطلّعك. اللي بيصمد أكتر بيربح.', facing: 'user' },
+  wink: { name: 'غمزات', icon: ic.wink, short: 'غمّز بالعين الصح… وجمّع نقاط', how: 'بيطلعلك «يمين» أو «شمال». غمّز بالعين المطلوبة، وبعد كل غمزة فتّح عيونك التنتين ليطلع الأمر الجاي. الغلط ما بيطلّعك، بس ما بيعطيك نقطة. أكتر غمزات صح خلال 30 ثانية بيربح. قرّب الموبايل على وجّك منيح.', facing: 'user' },
+  laugh: { name: 'اضحك… جمّد!', icon: ic.smile, short: 'ضحكة، جمود، ضحكة… وبسرعة', how: 'بيطلعلك «اضحك 😁» أو «جمّد 😐». نفّذ الأمر قبل ما يخلص وقته. كل أمر صح نقطة، والأوامر بتسرع. إذا ما لحقت ما في مشكلة، بيجي الأمر اللي بعدو.', facing: 'user' },
   emoji: { name: 'قلّد الإيموجي', icon: ic.emoji, short: 'اعمل نفس تعبير الإيموجي', how: 'بيطلع إيموجي ورا إيموجي. قلّد تعبيره بوجّك قبل ما يتغيّر، والكاميرا بتعطيك نسبة تطابق.', facing: 'user' },
-  statue: { name: 'تمثال', icon: ic.statue, short: 'تجمّد… أي حركة بتنحسب عليك', how: 'لما تبلّش، تجمّد قدّام الكاميرا. ولا حركة، ولا ضحكة، ولا تفتح تمّك. نسبة الوقت اللي ضليت فيه ثابت هي نتيجتك.', facing: 'user' },
-  brows: { name: 'حواجب طايرة', icon: ic.brows, short: 'كم مرة بترفع حواجبك بالوقت؟', how: 'ارفع حواجبك ونزّلهن بأسرع ما فيك. الكاميرا بتعدّ كل رفعة كاملة (لفوق ورجعة لتحت).', facing: 'user' },
-  head: { name: 'راسك هو الجويستيك', icon: ic.head, short: 'ميّل راسك لتلم النجوم وتهرب من الحجار', how: 'ميّل راسك على كتفك يمين وشمال لتحرّك الطابة. لمّ النجوم ⭐ وابعد عن الحجار، كل حجرة بتاكل نجمة.', facing: 'user' }
+  balance: { name: 'ميزان الطابة', icon: ic.balance, short: 'خلّي الطابة عاللوح بميلان راسك', how: 'في لوح عليه طابة، والهوا عم يدفشها. ميّل راسك على كتفك لتميّل اللوح وتخلّي الطابة بالنص. إذا وقعت بترجع بعد ثانية. الوقت اللي بتضل فيه عاللوح هو نتيجتك، والهوا بيقوى مع الوقت.', facing: 'user' },
+  brows: { name: 'حواجب طايرة', icon: ic.brows, short: 'كم مرة بترفع حواجبك بالوقت؟', how: 'ارفع حواجبك لفوق منيح ونزّلهن، وعيد بأسرع ما فيك. الكاميرا بتعدّ كل رفعة كاملة (لفوق ورجعة لتحت). خلّي راسك ثابت ووجّك قريب.', facing: 'user' },
+  head: { name: 'راسك هو الجويستيك', icon: ic.head, short: 'ميّل راسك لتلم النجوم وتهرب من الحجار', how: 'ميّل راسك على كتفك يمين وشمال لتحرّك الطابة. لمّ النجوم ⭐ وابعد عن الحجار، كل حجرة بتاكل نجمة.', facing: 'user' },
+  bubbles: { name: 'صيّاد الفقاعات', icon: ic.bubbles, short: 'أنفك هو الدبوس… فقّع الفقاعات', how: 'فقاعات بتطلع بكل الشاشة. حرّك راسك لتوصل نقطة أنفك لعند الفقاعة قبل ما تختفي. الفقاعة الدهبية بنقطتين.', facing: 'user' },
+  reaction: { name: 'أسرع ردّة فعل', icon: ic.reaction, short: 'لحظة ما تخضرّ الشاشة… افتح تمّك!', how: 'سكّر تمّك واستنى. لحظة ما تصير الشاشة خضرا افتح تمّك بأسرع ما فيك. 5 مرات، والنتيجة معدّل سرعتك بالميلي ثانية. إذا فتحت قبل الأخضر بتنحسب عليك.', facing: 'user' }
 };
-const ORDER = ['blink', 'color', 'blind', 'frame', 'wink', 'smile', 'emoji', 'statue', 'brows', 'head'];
-const MAX = { blink: 60, smile: 30 };
+const ORDER = ['blink', 'color', 'blind', 'frame', 'wink', 'laugh', 'emoji', 'balance', 'brows', 'head', 'bubbles', 'reaction'];
+const MAX = { blink: 60 };
 
 // مدة كل لعبة (بالثواني) — الحد الأقصى بتوقيت الحيط
 function duration(id, seed) {
   const r = rng(seed);
   switch (id) {
-    case 'blink': return 75; case 'smile': return 40; case 'color': return 33; case 'blind': return 36;
-    case 'frame': return 18 + Math.floor(r() * 5); case 'wink': return 60; case 'emoji': return 6 * 3.6 + .5;
-    case 'statue': return 12 + Math.floor(r() * 6); case 'brows': return 8 + Math.floor(r() * 5); case 'head': return 25;
+    case 'blink': return 75; case 'laugh': return 30; case 'color': return 33; case 'blind': return 36;
+    case 'frame': return 18 + Math.floor(r() * 5); case 'wink': return 30; case 'emoji': return 6 * 3.6 + .5;
+    case 'balance': return 30; case 'brows': return 10 + Math.floor(r() * 4); case 'head': return 25;
+    case 'bubbles': return 25; case 'reaction': return 45;
   }
   return 30;
 }
@@ -481,7 +507,7 @@ function play(opts) {
       <span class="live"><i></i><b id="glive">عم يراقب</b></span>
       <div class="gfx" id="gfx"></div>
       <div class="cd" id="gcd"></div>
-      <span class="status" id="gst"></span>
+      <span class="status" id="gst"></span><span class="far" id="gfar">📱 قرّب الموبايل على وجّك أكتر</span>
     </div>
     <div class="ghud" id="ghud"></div>
     <div class="tm"><b class="n" id="gtm">0</b><span id="gtl">ثانية</span><div class="tmbar"><b id="gbar"></b></div></div>
@@ -517,15 +543,18 @@ function play(opts) {
   function current() {
     const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
     switch (opts.id) {
-      case 'blink': return Math.min(MAX.blink, S.vis || 0); case 'smile': return Math.min(MAX.smile, S.vis || 0);
-      case 'brows': case 'wink': return S.n || 0; case 'head': return S.stars || 0;
+      case 'blink': return Math.min(MAX.blink, S.vis || 0); case 'laugh': return laughScore();
+      case 'brows': case 'wink': case 'bubbles': return S.n || 0; case 'head': return S.stars || 0; case 'balance': return S.on || 0;
+      case 'reaction': return reactScore();
       case 'emoji': return S.list ? S.best.reduce((a, b) => a + (b || 0), 0) / S.list.length * 100 : 0;
-      case 'statue': return S.tot ? S.still / S.tot * 100 : 0; case 'frame': return S.tot ? S.in / S.tot * 100 : 0;
+      case 'frame': return S.tot ? S.in / S.tot * 100 : 0;
       case 'blind': return S.shots ? S.shots.reduce((a, b) => a + b, 0) / 3 : 0;
       case 'color': return S.best ? avg(S.best) : 0;
     }
     return 0;
   }
+  function laughScore() { const n = S.n || 0, rts = S.rts || []; return n + (rts.length ? clamp(1 - rts.reduce((a, b) => a + b, 0) / rts.length / 2, 0, .9) : 0); }
+  function reactScore() { const a = (S.rts || []).slice(); while (a.length < 5) a.push(1500); return Math.max(0, 1500 - a.reduce((x, y) => x + y, 0) / 5); }
 
   // ---- محاكاة (بلا كاميرا بالمعاينة) ----
   if (opts.sim) {
@@ -577,6 +606,7 @@ function play(opts) {
     if ((!Cam.live() || video.paused) && now - revived > 1500) { revived = now; Cam.revive(video, facing).catch(() => {}); }
     const face = facing === 'user' ? Cam.detect(video) : null;
     if (face) lastFace = now;
+    if (facing === 'user') { const far = face && face.box.w < (opts.id === 'wink' || opts.id === 'brows' ? .32 : .2); $('#gfar').classList.toggle('on', !!far); }
     if (t < 0) { // عدّ تنازلي + «الطبيعي» الحالي
       $('#gcd').textContent = Math.ceil(-t);
       $('#gtm').textContent = Math.ceil(dur); $('#gbar').style.width = '100%';
@@ -600,17 +630,19 @@ function play(opts) {
 
   const setup = {
     blink() { S.events = Array.from({ length: 10 }, (_, i) => ({ at: 4 + i * 6 + r() * 4, e: FUNNY[Math.floor(r() * FUNNY.length)] })); S.closedAt = 0; S.vis = 0; },
-    smile() { S.jokes = shuffle(JOKES, r); S.k = -1; S.onAt = 0; S.vis = 0; },
-    brows() { S.n = 0; S.up = false; },
+    laugh() { S.cmd = 'smile'; S.n = 0; S.win = 2; S.cmdAt = 0; S.rts = []; S.holdAt = 0; $('#gact').innerHTML = '<div class="bigcmd" id="gcmd"></div><div class="mbar" style="margin-top:8px"><b id="gcb"></b></div>'; },
+    brows() { S.n = 0; S.up = false; S.hist = []; },
     wink() {
-      S.seq = Array.from({ length: 40 }, () => r() < .5 ? 'R' : 'L'); S.i = 0; S.win = 2.6; S.cmdAt = 0; S.n = 0; S.holdAt = 0; S.wrongAt = 0;
+      S.seq = Array.from({ length: 80 }, () => r() < .5 ? 'R' : 'L'); S.i = 0; S.n = 0; S.holdAt = 0; S.wait = false; S.openAt = 0; S.badAt = 0; S.shown = false;
       $('#gact').innerHTML = '<div class="bigcmd" id="gcmd"></div>';
     },
     emoji() {
       S.list = shuffle(EMOJI, r).slice(0, 6); S.i = -1; S.best = []; S.per = 3.6;
       $('#gact').innerHTML = '<div class="emo"><span id="gemo"></span><div><b id="gemn"></b><div class="mbar"><b id="gemb"></b></div></div></div>';
     },
-    statue() { S.hist = []; S.still = 0; S.tot = 0; S.events = Array.from({ length: 4 }, (_, i) => ({ at: 2 + i * 3 + r() * 2, e: ['🦟 دبانة!', '📢 تحرّك!', '🤧 عطسة!', '😜 اضحك!', '🐝 نحلة!'][Math.floor(r() * 5)] })); },
+    balance() { S.x = 0; S.v = 0; S.on = 0; S.falls = 0; S.pause = 0; S.wind = 0; S.windT = 0; S.wt = 1.5; S.wr = rng(opts.seed + 11); S.tilt = 0; },
+    bubbles() { S.b = []; S.n = 0; S.next = .3; S.br = rng(opts.seed + 21); },
+    reaction() { S.k = 0; S.rts = []; S.ph = 'arm'; S.cl = 0; const rr = rng(opts.seed + 31); S.waits = Array.from({ length: 5 }, () => 1.4 + rr() * 2.6); $('#gact').innerHTML = '<div class="bigcmd" id="gcmd"></div>'; },
     frame() { S.ph = [r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28]; S.sp = [.35 + r() * .25, .45 + r() * .3, .3 + r() * .2, .5 + r() * .3]; S.in = 0; S.tot = 0; },
     head() { S.x = .5; S.stars = 0; S.objs = []; S.next = 0; S.spawnR = rng(opts.seed + 7); S.hit = 0; },
     blind() {
@@ -646,52 +678,65 @@ function play(opts) {
       if (S.vis >= MAX.blink || t >= dur) finish(Math.min(MAX.blink, S.vis), labelFor('blink', Math.min(MAX.blink, S.vis), fem));
       function lose(why) { snap = Cam.snapshot(video); status(why, 'bad'); finish(S.vis, labelFor('blink', S.vis, fem)); }
     },
-    smile(face, t, dt, now) {
-      const k = Math.floor(t / 4.2);
-      if (k !== S.k) { S.k = k; fx(`<div class="joke"><span>${FUNNY[k % FUNNY.length]}</span>${S.jokes[k % S.jokes.length]}</div>`, 4100); }
-      if (face) {
-        S.vis += dt;
-        const sm = smileF(face.bs);
-        if (sm > T.smileHi) { if (!S.onAt) S.onAt = now; } else S.onAt = 0;
-        if (S.onAt && now - S.onAt > 220) { snap = Cam.snapshot(video); status(fem ? 'ضحكتي! 😂' : 'ضحكت! 😂', 'bad'); return finish(S.vis, labelFor('smile', S.vis, fem)); }
-        const warn = sm > T.smileN + .6 * (T.smileHi - T.smileN);
-        status(warn ? 'انتبه… عم تبتسم!' : 'وجّك جامد ✓', warn ? 'warn' : 'ok');
-      } else {
-        S.onAt = 0; status('رجّع وجّك… الوقت واقف', 'warn');
-        if (missing(now) > 5000) return finish(S.vis, labelFor('smile', S.vis, fem) + ' 🙈');
-      }
-      hud(`<div class="score"><b class="n">${fmt(S.vis)}</b><span>ثانية بلا ضحك</span></div>`);
-      if (S.vis >= MAX.smile || t >= dur) { snap = Cam.snapshot(video); finish(Math.min(MAX.smile, S.vis), labelFor('smile', Math.min(MAX.smile, S.vis), fem)); }
-    },
     brows(face, t, dt, now, left) {
       if (face) {
-        const v = browF(face.bs);
-        if (!S.up && v > T.browHi) { S.up = true; S.n++; fx(`<span class="pop">+1</span>`, 500); if (S.n === 3) snap = Cam.snapshot(video); }
-        else if (S.up && v < T.browLo) S.up = false;
+        const g = browGeo(face.lm);
+        S.hist.push({ t: now, g }); while (S.hist.length && now - S.hist[0].t > 2000) S.hist.shift();
+        let base = Infinity; for (const h of S.hist) if (h.g < base) base = h.g;
+        const rel = (g - base) / base, hi = T.browRel * .45;
+        const bsU = (browF(face.bs) - T.browN) / Math.max(.06, T.browHi - T.browN);
+        if (!S.up && (rel > hi || bsU > 1)) { S.up = rel > hi ? 'g' : 'b'; S.n++; fx(`<span class="pop">+1</span>`, 500); beep(1000, 50); if (S.n === 3) snap = Cam.snapshot(video); }
+        else if (S.up && (S.up === 'g' ? rel < hi * .4 : bsU < .5) && (rel < hi * .6)) S.up = false;
         status(S.up ? 'نزّل! ⬇' : 'ارفع! ⬆', 'ok');
-      } else status('قرّب وجّك', 'warn');
+      } else { S.hist = []; status('قرّب وجّك', 'warn'); }
       hud(`<div class="score"><b class="n">${S.n}</b><span>رفعة</span></div>`);
       if (left <= 0) finish(S.n, labelFor('brows', S.n, fem));
     },
-    wink(face, t, dt, now) {
-      if (!S.cmdAt) { S.cmdAt = t; showCmd(); }
-      const el = t - S.cmdAt;
-      if (face && !S.wait && el > .2) {
-        const want = S.seq[S.i], other = want === 'R' ? 'L' : 'R';
-        const ok = T.wink(face.bs, want), bad = T.wink(face.bs, other);
-        if (ok) { if (!S.holdAt) S.holdAt = now; } else S.holdAt = 0;
-        if (bad) { if (!S.wrongAt) S.wrongAt = now; } else S.wrongAt = 0;
-        if (S.holdAt && now - S.holdAt > 60) {
-          S.n++; S.i++; S.wait = true; S.holdAt = 0; fx(`<span class="pop">✓</span>`, 400); beep(1100, 60);
-          setTimeout(() => { S.wait = false; S.cmdAt = (Date.now() - opts.startAt) / 1000; S.win = Math.max(1.1, S.win * .94); showCmd(); }, 450);
-        } else if (S.wrongAt && now - S.wrongAt > 120) { snap = Cam.snapshot(video); status('العين الغلط! 🙈', 'bad'); return finish(S.n, labelFor('wink', S.n, fem)); }
-        else status('غمّز!', 'ok');
-      } else if (!face) status('قرّب وجّك', 'warn');
-      if (!S.wait && el > S.win) { snap = Cam.snapshot(video); status('خلص الوقت ⌛', 'bad'); return finish(S.n, labelFor('wink', S.n, fem)); }
-      if (!S.wait) $('#gbar').style.width = clamp(1 - el / S.win, 0, 1) * 100 + '%';
-      $('#gtm').textContent = S.n; $('#gtl').textContent = 'غمزة';
-      if (S.n >= 30) finish(S.n, labelFor('wink', S.n, fem));
+    wink(face, t, dt, now, left) {
+      const want = S.seq[S.i];
+      if (!S.shown) { S.shown = true; showCmd(); }
+      if (face) {
+        const wr = T.wink(face.bs, 'R', face.lm), wl = T.wink(face.bs, 'L', face.lm);
+        const open = !wr && !wl && (face.bs[E1] || 0) < T.blink[E1] && (face.bs[E2] || 0) < T.blink[E2];
+        if (S.wait) {
+          // بعد كل غمزة لازم تنفتح العيون التنتين
+          if (open) { if (!S.openAt) S.openAt = now; if (now - S.openAt > 120) { S.wait = false; S.openAt = 0; showCmd(); } } else S.openAt = 0;
+          status('فتّح عيونك 👀', '');
+        } else {
+          const ok = want === 'R' ? wr : wl, bad = want === 'R' ? wl : wr;
+          if (ok) { if (!S.holdAt) S.holdAt = now; } else S.holdAt = 0;
+          if (S.holdAt && now - S.holdAt > 60) {
+            S.n++; S.i++; S.wait = true; S.holdAt = 0; fx(`<span class="pop">✓</span>`, 400); beep(1100, 60);
+            if (S.n === 4) snap = Cam.snapshot(video);
+            const e = $('#gcmd'); if (e) e.innerHTML = '👀 فتّح';
+          } else if (bad && now - S.badAt > 900) { S.badAt = now; fx('<span class="pop sm">العين التانية! 🙃</span>', 700); status('العين التانية!', 'warn'); }
+          else if (!bad) status('غمّز!', 'ok');
+        }
+      } else status('قرّب وجّك', 'warn');
+      hud(`<div class="score"><b class="n">${S.n}</b><span>غمزة صح</span></div>`);
+      if (left <= 0) finish(S.n, labelFor('wink', S.n, fem));
       function showCmd() { const e = $('#gcmd'); if (e) e.innerHTML = S.seq[S.i] === 'R' ? 'يمين 👉' : '👈 شمال'; }
+    },
+    laugh(face, t, dt, now, left) {
+      if (!S.cmdAt) { S.cmdAt = t; show(); }
+      const el = t - S.cmdAt;
+      if (face) {
+        const sm = (smileF(face.bs) - T.smileN) / Math.max(.15, T.smileP - T.smileN), jw = (jawF(face.bs) - T.jawN) / Math.max(.15, T.jawP - T.jawN);
+        const ok = S.cmd === 'smile' ? sm > .5 : (sm < .22 && jw < .35);
+        if (ok) { if (!S.holdAt) S.holdAt = now; } else S.holdAt = 0;
+        if (S.holdAt && now - S.holdAt > 140) {
+          S.n++; S.rts.push(el); fx(`<span class="pop">✓</span>`, 400); beep(1100, 60);
+          if (S.n === 3) snap = Cam.snapshot(video);
+          return next(false);
+        }
+        status(S.cmd === 'smile' ? 'اضحك أكتر!' : 'جمّد وجّك!', 'ok');
+      } else status('قرّب وجّك', 'warn');
+      if (el > S.win) { fx('<span class="pop sm">⌛</span>', 500); return next(true); }
+      $('#gcb').style.width = clamp(1 - el / S.win, 0, 1) * 100 + '%';
+      hud(`<div class="score"><b class="n">${S.n}</b><span>أمر صح</span></div>`);
+      if (left <= 0) { const v = laughScore(); finish(v, labelFor('laugh', v, fem)); }
+      function next(miss) { S.cmd = S.cmd === 'smile' ? 'freeze' : 'smile'; S.cmdAt = t; S.holdAt = 0; if (!miss) S.win = Math.max(.8, S.win * .93); show(); }
+      function show() { const e = $('#gcmd'); if (e) e.innerHTML = S.cmd === 'smile' ? 'اضحك 😁' : 'جمّد 😐'; }
     },
     emoji(face, t) {
       const i = Math.floor(t / S.per);
@@ -699,30 +744,96 @@ function play(opts) {
       if (i !== S.i) { S.i = i; S.best[i] = 0; $('#gemo').textContent = S.list[i].e; $('#gemn').textContent = S.list[i].n; fx(`<span class="pop">${S.list[i].e}</span>`, 900); }
       const inWin = t - i * S.per > .4;
       if (face && inWin) {
-        const m = emojiMatch(S.list[i], face.bs, T);
+        const m = emojiMatch(S.list[i], face.bs, T, face.lm);
         if (m > S.best[i]) { S.best[i] = m; if (m > .75 && !snap) snap = Cam.snapshot(video); }
         $('#gemb').style.width = Math.round(m * 100) + '%';
         status(`تطابق ${Math.round(S.best[i] * 100)}%`, S.best[i] > .7 ? 'ok' : '');
       } else if (!face) status('قرّب وجّك', 'warn');
       $('#gtm').textContent = `${i + 1}/${S.list.length}`; $('#gtl').textContent = 'إيموجي';
     },
-    statue(face, t, dt, now, left) {
-      const ev = S.events.find(e => !e.done && t >= e.at); if (ev) { ev.done = true; fx(`<span class="pop sm">${ev.e}</span>`, 1200); }
-      S.tot += dt;
-      let still = false;
+    balance(face, t, dt, now, left) {
+      const cw = cv.cw, ch = cv.ch;
       if (face) {
-        S.hist.push({ t: now, x: face.nose.x, y: face.nose.y });
-        while (S.hist.length && now - S.hist[0].t > 320) S.hist.shift();
-        const h0 = S.hist[0], w = Math.max(.15, face.box.w);
-        const move = Math.hypot(face.nose.x - h0.x, face.nose.y - h0.y) / w;
-        const expr = (smileF(face.bs) - T.smileN) / Math.max(.15, T.smileP - T.smileN) + (jawF(face.bs) - T.jawN) / Math.max(.15, T.jawP - T.jawN);
-        still = move < .045 && expr < .55;
+        const n = C.n.roll, sR = (C.rollR - n) || 15, sL = (C.rollL - n) || -15, d = face.roll - n;
+        const u = Math.sign(d) === Math.sign(sR) ? clamp(d / (sR * .8), 0, 1) : -clamp(d / (sL * .8), 0, 1);
+        S.tilt += (u - S.tilt) * Math.min(1, dt * 8);
       }
-      if (still) S.still += dt;
-      const sc = S.tot ? S.still / S.tot * 100 : 100;
-      status(!face ? 'وين رحت؟' : still ? 'ثابت ✓' : 'عم تتحرك!', !face ? 'bad' : still ? 'ok' : 'warn');
-      hud(`<div class="score"><b class="n">${Math.round(sc)}%</b><span>ثبات</span></div>`);
-      if (left <= 0) { snap = Cam.snapshot(video); finish(sc, labelFor('statue', sc, fem)); }
+      if (t >= S.wt) { const lvl = Math.min(1, t / 25); S.windT = (S.wr() * 2 - 1) * (.7 + lvl * 2.4); S.wt = t + 1.2 + S.wr() * 1.6; }
+      S.wind += (S.windT - S.wind) * Math.min(1, dt * 2);
+      const ang = S.tilt * .45;
+      if (S.pause > 0) { S.pause -= dt; if (S.pause <= 0) { S.x = 0; S.v = 0; } }
+      else {
+        S.v += (Math.sin(ang) * 6 + S.wind) * Math.min(dt, .1); S.v *= Math.pow(.6, Math.min(dt, .1)); S.x += S.v * Math.min(dt, .1) * .55;
+        if (Math.abs(S.x) > 1) { S.falls++; S.pause = 1.2; fx('<span class="pop sm">💥 وقعت!</span>', 900); beep(300, 150); if (S.falls === 1) snap = Cam.snapshot(video); }
+        else S.on += dt;
+      }
+      ctx.fillStyle = 'rgba(26,28,36,.35)'; ctx.fillRect(0, 0, cw, ch);
+      const cx = cw / 2, cy = ch * .62, L = cw * .4, ux = Math.cos(ang), uy = Math.sin(ang);
+      ctx.lineCap = 'round'; ctx.strokeStyle = '#1A1C24'; ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(cx - ux * L, cy - uy * L); ctx.lineTo(cx + ux * L, cy + uy * L); ctx.stroke();
+      ctx.strokeStyle = '#FFD166'; ctx.lineWidth = 10; ctx.stroke();
+      ctx.fillStyle = '#1A1C24'; ctx.beginPath(); ctx.moveTo(cx - 14, cy + 40); ctx.lineTo(cx + 14, cy + 40); ctx.lineTo(cx, cy + 8); ctx.fill();
+      if (S.pause <= 0) {
+        const bx = cx + ux * L * S.x + uy * 17, by = cy + uy * L * S.x - ux * 17;
+        ctx.fillStyle = '#FF8A5C'; ctx.beginPath(); ctx.arc(bx, by, 14, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+      }
+      const w = S.wind; ctx.font = '700 18px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+      ctx.fillText(Math.abs(w) < .4 ? '🍃 هادي' : (w > 0 ? '💨 ➡'.repeat(1) : '⬅ 💨') + (Math.abs(w) > 1.8 ? ' قوي!' : ''), cw / 2, ch * .2);
+      status(face ? (S.pause > 0 ? 'وقعت! رجعت…' : 'ميّل راسك لتوازن') : 'قرّب وجّك', face ? (S.pause > 0 ? 'bad' : 'ok') : 'warn');
+      hud(`<div class="score"><b class="n">${fmt(S.on)}</b><span>ثانية عالميزان</span></div>`);
+      if (left <= 0) finish(S.on, labelFor('balance', S.on, fem));
+    },
+    bubbles(face, t, dt, now, left) {
+      const ex = C.ex, cw = cv.cw, ch = cv.ch, R = Math.min(cw, ch) * .09;
+      if (t >= S.next && S.b.length < 3) {
+        const u = S.br(), w = S.br(), life = Math.max(1.3, 2.6 - t * .05);
+        S.b.push({ x: ex.x0 + (.05 + .9 * u) * (ex.x1 - ex.x0), y: ex.y0 + (.05 + .9 * w) * (ex.y1 - ex.y0), born: t, life, gold: S.br() < .15 });
+        S.next = t + Math.max(.35, .9 - t * .02);
+      }
+      let nx = -999, ny = -999; if (face) [nx, ny] = v2c(face.nose.x, face.nose.y);
+      S.b = S.b.filter(b => {
+        const age = (t - b.born) / b.life; if (age >= 1) return false;
+        const [bx, by] = v2c(b.x, b.y), rr = R * (1 - .25 * age);
+        if (Math.hypot(nx - bx, ny - by) < rr + 6) { S.n += b.gold ? 2 : 1; fx(`<span class="pop sm">${b.gold ? '✨ +2' : '+1'}</span>`, 400); beep(b.gold ? 1400 : 1000, 50); if (S.n >= 5 && !snap) snap = Cam.snapshot(video); return false; }
+        ctx.globalAlpha = 1 - age * .5; ctx.fillStyle = b.gold ? 'rgba(255,209,102,.55)' : 'rgba(154,209,245,.4)';
+        ctx.beginPath(); ctx.arc(bx, by, rr, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(bx - rr * .35, by - rr * .35, rr * .18, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+        return true;
+      });
+      if (face) { ctx.fillStyle = '#FF8A5C'; ctx.beginPath(); ctx.arc(nx, ny, 9, 0, 7); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
+      status(face ? 'حرّك أنفك عالفقاعات' : 'قرّب وجّك', face ? 'ok' : 'warn');
+      hud(`<div class="score"><b class="n">${S.n}</b><span>فقاعة</span></div>`);
+      if (left <= 0) finish(S.n, labelFor('bubbles', S.n, fem));
+    },
+    reaction(face, t, dt, now, left) {
+      const cam = $('#gcam'), cmd = $('#gcmd');
+      if (S.k >= 5) return end();
+      const jw = face ? (jawF(face.bs) - T.jawN) / Math.max(.15, T.jawP - T.jawN) : null;
+      const open = jw != null && jw > .45, closed = jw != null && jw < .25;
+      const done1 = (ms, msg) => { S.rts.push(ms); S.ph = 'show'; S.showUntil = t + 1.3; cam.classList.remove('go', 'wait'); fx(`<span class="pop sm">${msg}</span>`, 1100); };
+      switch (S.ph) {
+        case 'arm':
+          cmd.textContent = `${S.k + 1}/5 · سكّر تمّك`; cam.classList.remove('go', 'wait');
+          if (closed) { if (!S.cl) S.cl = now; if (now - S.cl > 300) { S.ph = 'wait'; S.goAt = t + S.waits[S.k]; S.cl = 0; } } else S.cl = 0;
+          break;
+        case 'wait':
+          cmd.textContent = 'استنى… 🤫'; cam.classList.add('wait');
+          if (open) { done1(1500, 'بكّير! 🙈'); beep(300, 150); }
+          else if (t >= S.goAt) { S.ph = 'go'; S.goT = now; beep(1300, 90); cam.classList.remove('wait'); cam.classList.add('go'); }
+          break;
+        case 'go': {
+          cmd.textContent = 'افتح تمّك! 😮';
+          const ms = now - S.goT;
+          if (open) { done1(ms, `${Math.round(ms)} ms`); if (!S.bestMs || ms < S.bestMs) { S.bestMs = ms; snap = Cam.snapshot(video); } }
+          else if (ms > 1500) done1(1500, '⌛ تأخرت');
+          break;
+        }
+        case 'show': if (t >= S.showUntil) { S.k++; S.ph = 'arm'; } break;
+      }
+      const a = S.rts.length ? Math.round(S.rts.reduce((x, y) => x + y, 0) / S.rts.length) : 0;
+      status(face ? (S.ph === 'go' ? 'هلّق!' : 'جاهز…') : 'قرّب وجّك', face ? (S.ph === 'go' ? 'ok' : '') : 'warn');
+      hud(`<div class="score"><b class="n">${a ? a + ' ms' : '—'}</b><span>المعدّل لهلّق</span></div>`);
+      if (left <= 0) end();
+      function end() { cam.classList.remove('go', 'wait'); const v = reactScore(); finish(v, labelFor('reaction', v, fem)); }
     },
     frame(face, t, dt, now, left) {
       const ex = C.ex, cxm = (ex.x0 + ex.x1) / 2, cym = (ex.y0 + ex.y1) / 2, rx = Math.max(.08, (ex.x1 - ex.x0) / 2), ry = Math.max(.06, (ex.y1 - ex.y0) / 2);
@@ -841,11 +952,13 @@ function labelFor(id, s, fem) {
   const r = Math.round(s), P = v => `⁦${v}%⁩`;
   switch (id) {
     case 'blink': return `صمد${fem ? 'ت' : ''} ${fmt(s)} ثانية`;
-    case 'smile': return s >= MAX.smile ? `ما ضحك${fem ? 'ت' : ''} أبداً 😐` : `صمد${fem ? 'ت' : ''} ${fmt(s)} ثانية`;
+    case 'laugh': return `${Math.floor(s)} أمر صح`;
     case 'brows': return `${r} رفعة حواجب`;
     case 'wink': return `${r} غمزة صح`;
     case 'emoji': return `تطابق ${P(r)}`;
-    case 'statue': return `ثبات ${P(r)}`;
+    case 'balance': return `${fmt(s)} ثانية عالميزان`;
+    case 'bubbles': return `${r} فقاعة`;
+    case 'reaction': return `ردّة فعلك \u2066${Math.round(1500 - s)} ms\u2069`;
     case 'frame': return `${P(r)} جوّا الإطار`;
     case 'head': return `${r} نجمة`;
     case 'blind': return `دقة ${P(r)}`;
@@ -857,11 +970,12 @@ function simScore(id, r) {
   const u = r ? r() : Math.random(), u2 = Math.random();
   const v = (u + u2) / 2;
   switch (id) {
-    case 'blink': return 4 + v * 30; case 'smile': return 3 + v * 25; case 'brows': return Math.round(4 + v * 14);
+    case 'blink': return 4 + v * 30; case 'laugh': return 3 + v * 12; case 'brows': return Math.round(4 + v * 14);
+    case 'balance': return 5 + v * 22; case 'bubbles': return Math.round(3 + v * 18); case 'reaction': return 300 + v * 900;
     case 'wink': return Math.round(1 + v * 14); case 'head': return Math.round(v * 22);
     default: return 25 + v * 70;
   }
 }
 
-window.Taswir = { GAMES, ORDER, Cam, Calib, calibrate, play, labelFor, simScore, duration, rng, shuffle };
+window.Taswir = { GAMES, ORDER, Cam, Calib, calibrate, play, labelFor, simScore, duration, rng, shuffle, browGeo, ear };
 })();

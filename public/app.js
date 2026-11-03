@@ -27,7 +27,7 @@ const PH = {}; // الصور: pid/group -> dataURL (برا الحالة)
 const pending = {}; // rid -> نتيجتي اللي لسّا ما وصلت للريس
 const finished = LS.get('fin', {}); // rid -> نتيجتي (للرجوع بعد تحديث الصفحة)
 let curRid = null, gameApi = null, myResult = null, album = [], lastShot = null;
-let spinShown = null, partyShown = null;
+let spinShown = null;
 const srvNow = () => Date.now() + offset;
 
 // ---------- أدوات واجهة ----------
@@ -51,7 +51,7 @@ function gicon(id) { return `<svg viewBox="0 0 24 24" fill="none" stroke="curren
 const LENS = `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92" fill="var(--surface)" stroke="var(--ink)" stroke-width="3"/><circle cx="100" cy="100" r="74" fill="#1A1C24"/>
 <g class="blades" stroke="#3A3E4A" stroke-width="2"><line x1="100" y1="26" x2="132" y2="82"/><line x1="164" y1="63" x2="132" y2="118"/><line x1="164" y1="137" x2="100" y2="137"/><line x1="100" y1="174" x2="68" y2="118"/><line x1="36" y1="137" x2="68" y2="82"/><line x1="36" y1="63" x2="100" y2="63"/></g>
 <polygon class="iris" points="100,58 136,79 136,121 100,142 64,121 64,79" fill="var(--acc)" stroke="#1A1C24" stroke-width="2"/><circle cx="122" cy="74" r="7" fill="#fff" opacity=".85"/></svg><div class="flash"></div>`;
-$('#lens').innerHTML = LENS + '<span class="count">10 تحديات</span>';
+$('#lens').innerHTML = LENS + '<span class="count">12 تحدي</span>';
 
 // الثيم
 function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; $('#themeB').innerHTML = dark ? ICONS.sun : ICONS.moon; document.querySelector('meta[name=theme-color]').content = dark ? '#14161C' : '#F4F1EA'; }
@@ -350,7 +350,7 @@ function renderLobby() {
       ${teamMode() ? `<span class="label">كم فريق؟</span><div class="seg" id="tSeg">${[2, 3, 4].map(n => `<button data-t="${n}" class="${st.teams === n ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div style="margin-top:8px"><button class="btn sm ghost" id="shufB">وزّع الفرق عشوائي 🎲</button></div>` : ''}
       <span class="label">كم لعبة؟</span>
-      <div class="chips" id="cSeg">${[3, 5, 7, 10].map(n => `<button class="chip ${st.count === n ? 'on' : ''}" data-c="${n}">${n} ألعاب</button>`).join('')}</div>
+      <div class="chips" id="cSeg">${[3, 5, 7, 12].map(n => `<button class="chip ${st.count === n ? 'on' : ''}" data-c="${n}">${n} ألعاب</button>`).join('')}</div>
       <p class="mut" style="font-size:13px;margin:8px 0 0">عجلة الحظ بتختار الألعاب، وما في لعبة بتتكرر بنفس الدورة.</p>`;
     $$('#mSeg button').forEach(b => b.onclick = () => { st.mode = b.dataset.m; if (teamMode()) teamsInit(); else S.players.forEach(p => (p.team = null)); pushState(); render(); });
     $$('#tSeg button').forEach(b => b.onclick = () => { st.teams = +b.dataset.t; teamsInit(); pushState(); render(); });
@@ -468,8 +468,8 @@ function renderPlayersSheet() {
 }
 
 // ---------- العجلة ----------
-const WEMO = { blink: '👁️', color: '🎨', blind: '🙈', frame: '🔲', wink: '😉', smile: '😐', emoji: '😮', statue: '🗿', brows: '🤨', head: '🕹️' };
-const WCOL = ['#FF8A5C', '#FFD166', '#9AD1F5', '#B8E0B0', '#F5B5C8', '#C9B6F2', '#FFB38A', '#8EE3D6', '#F2E08A', '#B5C7FF'];
+const WEMO = { blink: '👁️', color: '🎨', blind: '🙈', frame: '🔲', wink: '😉', laugh: '😆', emoji: '😮', balance: '⚖️', brows: '🤨', head: '🕹️', bubbles: '🫧', reaction: '⚡' };
+const WCOL = ['#FF8A5C', '#FFD166', '#9AD1F5', '#B8E0B0', '#F5B5C8', '#C9B6F2', '#FFB38A', '#8EE3D6', '#F2E08A', '#B5C7FF', '#A8E6A1', '#FFA8A8'];
 function renderWheel() {
   show('wheel');
   const r = S.round; const n = S.settings.count;
@@ -639,35 +639,42 @@ function renderWrap() {
 }
 $('#gtcB').onclick = () => { const v = $('#gtc').value.trim(); if (v) { S.group.type = v.slice(0, 16); $('#gtIn').classList.add('hide'); pushState(); renderWrap(); } };
 $('#gn').oninput = e => { S.group.name = e.target.value.slice(0, 22); clearTimeout($('#gn').t); $('#gn').t = setTimeout(() => pushState(), 500); };
-$('#partyB').onclick = () => { S.reveal = 'party'; S.partyAt = srvNow() + 400; S.phase = 'party'; pushState({ finished: true }); render(); setTimeout(() => { if (S.phase === 'party') { S.phase = 'final'; pushState(); render(); } }, partyLen() + 600); };
+$('#partyB').onclick = () => { S.reveal = 'party'; S.rv = { steps: Math.min(3, totalsSorted().length), step: 0, at: srvNow() }; S.phase = 'party'; pushState(); render(); };
 $('#allB').onclick = () => { S.reveal = 'all'; S.phase = 'final'; pushState({ finished: true }); render(); confetti(); };
 $('#editG').onclick = () => { S.phase = 'wrap'; pushState(); render(); };
 $('#againB').onclick = () => confirmBox('دورة جديدة؟', 'رح تنصفّر النقاط وتبلّش دورة جديدة بنفس اللاعبين.', 'يلا', () => { S.phase = 'lobby'; S.played = []; S.history = []; S.totals = {}; S.round = null; S.cycle++; pushState(); render(); });
 
-// ---------- حفلة الكشف ----------
-function partyLen() { const n = Math.min(3, totalsSorted().length); return 3000 + n * 2600 + 600; }
+// ---------- حفلة الكشف (الريس بيكشف التالت، التاني، الأول) ----------
+const ORD = ['', 'الأول', 'التاني', 'التالت'];
+function winsOf(key) { return S.history.filter(h => h.ent.some(e => e.key === key && e.rank === 1 && e.has)).length; }
+function podiumCard(e, gold) {
+  const team = teamMode(), p = e.p;
+  const avh = team ? `<span class="av" style="--s:110px;--pc:${S.teams[e.team].color}">${gold ? '🏆' : '📸'}</span>` : av(p, 110);
+  const sub = team ? members(e.team).map(m => esc(nameOf(m))).join('، ') : '';
+  return `<div class="podium-card ${gold ? 'gold' : ''}">${avh}<div class="p-name">${esc(e.name)}</div>${sub ? `<div class="mut" style="font-size:13px">${sub}</div>` : ''}<span class="p-title">${titleFor(e.rank, p ? p.g : 'm', team)}</span><span class="p-pts n">${e.pts} نقطة · ${winsOf(e.key)} ${winsOf(e.key) === 1 ? 'لعبة' : 'ألعاب'} ${team ? 'ربحوها' : fem(p) ? 'ربحتها' : 'ربحها'}</span></div>`;
+}
+let rvSeen = null, rvT = null;
 function renderParty() {
   show('party');
-  if (partyShown === S.partyAt) return; partyShown = S.partyAt;
-  const tot = totalsSorted(), team = teamMode();
-  const steps = tot.slice(0, 3).reverse();
-  const t0 = S.partyAt - offset;
-  const run = () => {
-    const el = Date.now() - t0;
-    if (S.phase !== 'party') return;
-    if (el < 3000) { const c = 3 - Math.floor(el / 1000); if ($('#pb').dataset.k !== 'c' + c) { $('#pb').dataset.k = 'c' + c; $('#pb').innerHTML = `<p class="mut">والمعلّم ${team ? 'بين الفرق' : 'بهالقعدة'} هو…</p><div class="cnt">${c}</div>`; } }
-    else {
-      const k = Math.min(steps.length - 1, Math.floor((el - 3000) / 2600)); const e = steps[k];
-      if ($('#pb').dataset.k !== String(k)) {
-        $('#pb').dataset.k = k;
-        const p = e.p;
-        $('#pb').innerHTML = `<div class="pod"><p class="mut" style="margin:0">المركز ${e.rank}</p>${team ? `<div style="width:110px;height:110px;margin:14px auto 0;border-radius:30%;border:3px solid var(--press);box-shadow:4px 4px 0 var(--press);background:${S.teams[e.team].color}"></div>` : av(p, 120)}<h2 style="margin-top:14px;font-size:30px">${esc(e.name)}</h2><span class="ttl">${titleFor(e.rank, p ? p.g : 'm', team)}</span><p class="mut">${e.pts} نقطة</p></div>`;
-        if (e.rank === 1) confetti();
-      }
+  const r = S.rv || { steps: 0, step: 0, at: 0 }, tot = totalsSorted(), team = teamMode();
+  const t0 = r.at - offset, el = Date.now() - t0;
+  const counting = r.step > 0 && el < 2100;
+  let h = '<div class="reveal-stage">';
+  if (r.step === 0) h += `<div style="font-size:80px;line-height:1">🥁</div><h2>جاهزين للكشف؟</h2><p class="mut" style="margin:0">${team ? 'أي فريق هو المعلّم؟' : 'مين معلّم التصوير بهالقعدة؟'}</p>`;
+  else {
+    const place = r.steps - r.step + 1, row = tot[place - 1];
+    if (counting) h += `<span class="place">المركز ${ORD[place]}</span><div class="reveal-count n">${Math.max(1, 3 - Math.floor(el / 700))}</div>`;
+    else if (row) {
+      h += `<span class="place">المركز ${ORD[place]}</span>` + podiumCard(row, place === 1);
+      if (place === 1 && rvSeen !== 'c' + r.at) { rvSeen = 'c' + r.at; confetti(); }
     }
-    requestAnimationFrame(run);
-  };
-  $('#pb').dataset.k = ''; run();
+  }
+  h += '</div>';
+  if (isHost && !counting) h += `<button class="btn red big" id="rvNext" style="margin-top:18px">${r.step < r.steps ? `اكشف المركز ${ORD[r.steps - r.step]} 🥁` : 'عالنتيجة الكاملة 🏆'}</button>`;
+  else if (!isHost && !counting) h += `<p class="mut" style="text-align:center;margin-top:18px">${r.step < r.steps ? 'الريس عم يكشف…' : 'هلّق بتطلع النتيجة الكاملة…'}</p>`;
+  $('#pb').innerHTML = h;
+  const nb = $('#rvNext'); if (nb) nb.onclick = () => { if (S.rv.step < S.rv.steps) { S.rv.step++; S.rv.at = srvNow(); pushState(); } else { S.phase = 'final'; pushState({ finished: true }); } render(); };
+  clearTimeout(rvT); if (counting) rvT = setTimeout(() => { if (S.phase === 'party') renderParty(); }, 700 - (el % 700) + 10);
 }
 
 // ---------- النتيجة النهائية ----------
