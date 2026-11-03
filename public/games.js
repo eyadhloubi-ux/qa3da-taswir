@@ -173,9 +173,9 @@ const DEF = {
   blink: { [E1]: .7, [E2]: .7 }
 };
 const Calib = {
-  get() { const c = LSget('calib', null); return c && c.v === 2 ? c : null; },
+  get() { const c = LSget('calib', null); return c && c.v === 3 ? c : null; },
   data() { return this.get() || DEF; },
-  save(c) { c.v = 2; c.at = Date.now(); LSset('calib', c); },
+  save(c) { c.v = 3; c.at = Date.now(); LSset('calib', c); },
   clear() { LSset('calib', null); }
 };
 // عتبات الشخص (مع إمكانية تحديث «الطبيعي» من العدّ التنازلي)
